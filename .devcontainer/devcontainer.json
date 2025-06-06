@@ -26,12 +26,13 @@
                 "ms-python.python",
                 "ms-python.isort",
                 "ms-python.vscode-pylance",
-                "timonwong.shellcheck",
+				"ms-toolsai.jupyter",
+				"dbaeumer.vscode-eslint",
                 "github.copilot",
-                "stkb.rewrap"
+                "dnut.rewrap-revived"
             ]
         }
-    },
+    }
 
 	// Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
 	// "remoteUser": "root"
