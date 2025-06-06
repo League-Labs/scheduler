@@ -8,8 +8,7 @@ from dotenv import load_dotenv
 from functools import wraps
 from urllib.parse import urlparse, urlunparse, parse_qs, urlencode
 import logging
-
-
+import sqlite3
 
 def init_app():
     # Load environment variables from .env
@@ -189,8 +188,16 @@ def logout():
     app.logout_user()
     return redirect(url_for('index'))
 
+DATABASE_PATH = os.environ.get('DATABASE_PATH', '/data/scheduler.sqlite3')
 
+def get_db():
+    if not os.path.exists(os.path.dirname(DATABASE_PATH)):
+        os.makedirs(os.path.dirname(DATABASE_PATH))
+    conn = sqlite3.connect(DATABASE_PATH)
+    return conn
 
+# In your Flask app, ensure the database is initialized on startup if not present
 if __name__ == '__main__':
-    init_app()
+    from init_db import get_db
+    get_db()
     app.run(host='0.0.0.0', port=5000, debug=True)

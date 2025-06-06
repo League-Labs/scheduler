@@ -54,14 +54,42 @@ column are toggled on or off. If there are no dayhours in the column selected, t
 are all turned on. If there is one or more selected, all of the dayhours that
 are on are turned off. 
 
+- Below each column title (day names) is a button with "copy ->". Clicking this
+button will copy the contents of the column below the button to the column to
+the right. 
+
+There are instructions at the bottom of the app page, telling the user about the
+effect of clicking on the row and column headings, and what the copy button does. 
+
+### Dayhour Colors
+
 The background color of each dayhour indicates the portion of people who have
 selected that dayhour, of all of the github accounts that have a record of any
 select for that team.  The colors are: 
 
-- dark green: 100 of users have selected this dayhour
-- light green: 100%->90%  of users have selected this dayhour
-- yellow: 70%->90% of users have selected this dayhour
+- dark green and star icon on the left of the cell: 100 of users have selected this dayhour
+- light green: second most common number of choices
+- yellow: third most common number of choices
 - light red < 70% of users have selected this dayhour
+- white: there are zero selections for this day hour. 
+
+To find the color for the dayhour cells:
+
+- sum the number of selections per day hour cell for all dayhours
+- put all of the sums into a list
+- remove duplicated from the list
+- sort the list from greatest to least
+
+Then for the first three numbers in the list, color all cells with that
+number of selections with the corresponding colors in the color list, 
+(dark green, light green, yellow). All other cells with a non-zero value are red, 
+and the cells with a zero value are white. 
+
+### Dayhour counts
+
+The dayhour cell with also display a small number in the lower-right, with a
+size that is 1/2 of the dayhour cell, with displays the count of votes for that
+cell, if there are more than 0 selections for the cell. 
 
 ## Database & protocol
 
@@ -169,3 +197,14 @@ Setup static files for style.css, the application .js file, and images.
 
 - Full implemementataion of the user interface. 
 
+### Sprint6: Database and Dockerize
+
+- Implement sqlite for data storage. 
+- Auto create database if it does not exist. 
+- Create a Docker file and docker compose configuration. 
+- create a docker ignore to ignore files that should be ignored
+
+- create a justfile to run management commands: run the development server and recreate the database. 
+
+For the docker composed configuration, define a mounted data directory to hold
+the sqlite database. 

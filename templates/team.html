@@ -1,8 +1,77 @@
 {% extends "base.html" %}
 {% block title %}Team: {{ team }}{% endblock %}
+{% block head %}
+    <script src="{{ url_for('static', filename='app.js') }}" defer></script>
+    <style>
+        .schedule-grid {
+            display: grid;
+            grid-template-columns: 60px repeat(7, 1fr);
+            grid-template-rows: 45px repeat(14, 1fr);
+            gap: 2px;
+            background: #dee2e6;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .schedule-header, .schedule-hour, .schedule-cell {
+            background: #fff;
+            text-align: center;
+            padding: 0.5em 0;
+            font-size: 0.95em;
+        }
+        .schedule-header {
+            background: #343a40;
+            color: #fff;
+            font-weight: bold;
+            padding-bottom: 5px;
+            margin-bottom: 5px;
+        }
+        .schedule-hour {
+            background: #f1f3f4;
+            font-weight: bold;
+        }
+        .schedule-cell.selected {
+            position: relative;
+            background: #212529;
+            color: #fff;
+        }
+        .schedule-cell.selected::after {
+            content: '';
+            display: block;
+            width: 16px;
+            height: 16px;
+            background: #000;
+            border-radius: 50%;
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+        }
+        .schedule-cell {
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .schedule-cell.bg-100 { background: #198754 !important; color: #fff; }
+        .schedule-cell.bg-90 { background: #51cf66 !important; color: #222; }
+        .schedule-cell.bg-70 { background: #ffe066 !important; color: #222; }
+        .schedule-cell.bg-0 { background: #ff6b6b !important; color: #fff; }
+    </style>
+{% endblock %}
 {% block content %}
     <h2>Team: {{ team }}</h2>
     <div id="spa-root">
-        <!-- The SPA will mount here -->
+        <div class="schedule-grid" id="schedule-grid"></div>
+        <div class="mt-3">
+            <button class="btn btn-primary" id="save-btn">Save Selections</button>
+            <span id="save-status" class="ms-3"></span>
+        </div>
+        <div class="instructions mt-4" style="max-width: 600px;">
+            <h5>Instructions</h5>
+            <ul>
+                <li><b>Click a cell</b> to select or deselect that hour for that day.</li>
+                <li><b>Click a row heading</b> (hour) to toggle all cells in that row on or off.</li>
+                <li><b>Click a column heading</b> (day) to toggle all cells in that column on or off.</li>
+                <li><b>Click the <code>copy →</code> button</b> below a day to copy all selections in that column to the column to the right.</li>
+            </ul>
+        </div>
     </div>
 {% endblock %}

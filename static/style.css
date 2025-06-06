@@ -20,3 +20,103 @@ li {
 }
 
 /* Bootstrap utility overrides or additions can go here if needed */
+.schedule-cell {
+    width: 100%;
+    min-width: 48px;
+    height: 48px;
+    border: 1px solid #ccc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    background: #fff;
+    cursor: pointer;
+    transition: background 0.2s;
+    box-sizing: border-box;
+}
+.schedule-cell.selected {
+    outline: 2px solid #999;
+  
+}
+.schedule-row {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+}
+#schedule-grid {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    border-radius: 10px;
+    overflow: hidden;
+   
+    margin-bottom: 2em;
+}
+.schedule-header, .schedule-hour {
+    background: #2d3237;
+    color: #fff;
+    font-weight: bold;
+    text-align: center;
+    border: 1px solid #222;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.schedule-hour {
+    background: #222 !important;
+    color: #fff !important;
+}
+.bg-100 {
+    background: #217a2b !important;
+    color: #fff;
+}
+.bg-1st {
+    background: #43b047 !important;
+    color: #fff;
+}
+.bg-2nd {
+    background: #b6e388 !important;
+    color: #222;
+}
+.bg-3rd {
+    background: #ffe066 !important;
+    color: #222;
+}
+.bg-red {
+    background: #ffb3b3 !important;
+    color: #222;
+}
+.bg-white {
+    background: #fff !important;
+    color: #222;
+}
+.schedule-cell .dot {
+    width: 12px;
+    height: 12px;
+    background: #111;
+    border-radius: 50%;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 2;
+}
+.schedule-cell .star {
+    position: absolute;
+    left: 4px;
+    top: 4px;
+    font-size: 16px;
+    color: gold;
+    z-index: 3;
+}
+.schedule-cell .count {
+    position: absolute;
+    right: 6px;
+    bottom: 2px;
+    font-size: 1em;
+    font-weight: bold;
+    background: rgba(255,255,255,0.7);
+    border-radius: 6px;
+    padding: 0 4px;
+    z-index: 3;
+    pointer-events: none;
+}
