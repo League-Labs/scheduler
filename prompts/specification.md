@@ -153,8 +153,19 @@ and test it before going on to the next step.
 - Create a section in the README with instructions for me to set up Github Oauth ( like getting tokens from )
 - Let me validate that the logins work. 
 
-### Spring4: User Interface
+### Sprint4: Add Jinja2 Templates
+
+Setup Jinja templates. Create a page 'base.html' for the basic structure of the application
+( head, title, body, etc ). From base.html, derive a `page.html` that is tailored with the style for
+the pages in this application. THen create pages for: 
+
+* index
+* team ( which will hold the SPA )
+* hello
+
+Setup static files for style.css, the application .js file, and images. 
+
+### Sprint5: User Interface
 
 - Full implemementataion of the user interface. 
 
-### Sprint

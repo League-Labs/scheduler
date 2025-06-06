@@ -1,0 +1,22 @@
+body {
+    font-family: var(--bs-body-font-family, Arial, sans-serif);
+    background: #f8f9fa;
+    margin: 0;
+    padding: 0;
+}
+
+main {
+    padding: 2em;
+}
+h1, h2 {
+    margin-top: 0;
+}
+ul {
+    list-style: none;
+    padding: 0;
+}
+li {
+    margin-bottom: 0.5em;
+}
+
+/* Bootstrap utility overrides or additions can go here if needed */

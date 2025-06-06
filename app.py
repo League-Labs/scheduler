@@ -1,86 +1,163 @@
-from flask import Flask, session, redirect, url_for, request, jsonify
+from flask import Flask, session, redirect, url_for, request, jsonify, render_template
 from flask.sessions import SecureCookieSessionInterface
 import json
 from collections import defaultdict
+import os
+from flask_dance.contrib.github import make_github_blueprint, github
+from dotenv import load_dotenv
+from functools import wraps
+from urllib.parse import urlparse, urlunparse, parse_qs, urlencode
+import logging
 
-app = Flask(__name__)
-app.secret_key = 'dev-secret-key'  # For development only
 
-# --- Test users for development ---
-TEST_USERS = ['test1', 'test2', 'test3']
 
-# --- In-memory storage for userteam selections (for Sprint2, replace with DB later) ---
-userteam_selections = defaultdict(dict)  # {team: {user: [dayhours]}}
+def init_app():
+    # Load environment variables from .env
+    load_dotenv()
 
-# --- Session helper ---
-def login_user(username):
-    session.clear()
-    session['user'] = username
+    app = Flask(__name__)
+    app.secret_key = 'dev-secret-key'  # For development only
 
-def logout_user():
-    session.clear()
+    # Allow OAuth over http in debug mode for development
+    if app.debug or os.environ.get('FLASK_ENV') == 'development':
+        os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
-def get_current_user():
-    return session.get('user')
+    # --- Test users for development ---
+    TEST_USERS = ['test1', 'test2', 'test3']
+    app.config['TEST_USERS'] = TEST_USERS
 
-# --- Login stub ---
-@app.route('/login')
-def login():
-    # This is a stub for Github login
-    return 'Login page (stub)', 200
+    # --- In-memory storage for userteam selections (for Sprint2, replace with DB later) ---
+    userteam_selections = defaultdict(dict)  # {team: {user: [dayhours]}}
+    app.userteam_selections = userteam_selections
 
-# --- Test user login via query param ---
+    # --- Session helper ---
+    def login_user(username):
+        session.clear()
+        session['user'] = username
+    app.login_user = login_user
+
+    def logout_user():
+        session.clear()
+    app.logout_user = logout_user
+
+    def get_current_user():
+        return session.get('user')
+    app.get_current_user = get_current_user
+
+    # Register Flask-Dance Github blueprint
+    GITHUB_CLIENT_ID = os.environ.get('GITHUB_OAUTH_CLIENT_ID')
+    GITHUB_CLIENT_SECRET = os.environ.get('GITHUB_OAUTH_CLIENT_SECRET')
+    github_bp = make_github_blueprint(
+        client_id=GITHUB_CLIENT_ID,
+        client_secret=GITHUB_CLIENT_SECRET,
+    )
+    app.register_blueprint(github_bp, url_prefix="/login")
+
+    return app
+
+app = init_app()
+
+# Set up logger
+logger = logging.getLogger("scheduler")
+logging.basicConfig(level=logging.INFO)
+
+
 @app.before_request
 def handle_test_user_login():
     test_user = request.args.get('user')
-    if test_user in TEST_USERS:
-        logout_user()
-        login_user(test_user)
+    if test_user in app.config['TEST_USERS']:
+        logger.info(f"Setting test user: {test_user}")
+        app.logout_user()
+        app.login_user(test_user)
         # Remove the ?user= param and redirect to the same path without it
-        from urllib.parse import urlparse, urlunparse, parse_qs, urlencode
         url = urlparse(request.url)
         query = parse_qs(url.query)
         query.pop('user', None)
         new_query = urlencode(query, doseq=True)
         new_url = urlunparse((url.scheme, url.netloc, url.path, url.params, new_query, url.fragment))
         return redirect(new_url)
+    
+
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        user = app.get_current_user()
+        if not user:
+            session['next'] = request.url
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+def login_required_api(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        user = app.get_current_user()
+        if not user:
+            return jsonify({'error': 'Authentication required'}), 401
+        return f(*args, **kwargs)
+    return decorated_function
+
+# --- Login route override to use Github login ---
+@app.route('/login')
+def login():
+    if github.authorized:
+        user_resp = github.get('/user')
+        if user_resp.ok:
+            app.login_user(user_resp.json().get('login'))
+            next_url = session.pop('next', url_for('index'))
+            return redirect(next_url)
+    return redirect(url_for('github.login'))
+
+# --- After Github OAuth, set session and redirect ---
+@app.route('/login/github/authorized')
+def github_authorized():
+    if not github.authorized:
+        return redirect(url_for('login'))
+    user_resp = github.get('/user')
+    if not user_resp.ok:
+        return 'Failed to fetch user info from Github', 400
+    app.login_user(user_resp.json().get('login'))
+    next_url = session.pop('next', url_for('index'))
+    return redirect(next_url)
 
 # --- Hello route ---
 @app.route('/hello')
+@login_required
 def hello():
-    user = get_current_user()
-    if not user:
-        # Save original URL and redirect to login
-        session['next'] = request.url
-        return redirect(url_for('login'))
-    return f"hello {user}", 200
+    user = app.get_current_user()
+    return render_template('hello.html', user=user)
 
 # --- Root route (for completeness, not required in Sprint 1) ---
 @app.route('/')
 def index():
-    return 'League Labs Scheduler Home', 200
+    # Check if user is logged in and has a current team
+    if app.get_current_user() and session.get('current_team'):
+        return redirect(url_for('team_page', team=session['current_team']))
+
+    # List all teams (keys in userteam_selections)
+    teams = sorted(app.userteam_selections.keys())
+    return render_template('index.html', teams=teams)
 
 # --- GET and POST /<team>/selections ---
 @app.route('/<team>/selections', methods=['GET', 'POST'])
+@login_required_api
 def team_selections(team):
-    user = get_current_user()
-    if not user:
-        session['next'] = request.url
-        return redirect(url_for('login'))
+    user = app.get_current_user()
     if request.method == 'GET':
-        selections = userteam_selections[team].get(user, [])
+        selections = app.userteam_selections[team].get(user, [])
         return jsonify(selections)
     # POST: Save selections
     data = request.get_json(force=True)
     if not isinstance(data, list):
         return jsonify({'error': 'Selections must be a list'}), 400
-    userteam_selections[team][user] = data
+    app.userteam_selections[team][user] = data
     return jsonify({'status': 'ok'})
 
 # --- GET /<team>/info ---
 @app.route('/<team>/info', methods=['GET'])
+@login_required
 def team_info(team):
-    team_data = userteam_selections[team]
+    team_data = app.userteam_selections[team]
     users = list(team_data.keys())
     count = len(users)
     dayhours = defaultdict(int)
@@ -94,5 +171,26 @@ def team_info(team):
         'dayhours': dict(dayhours)
     })
 
+# --- Team page stub ---
+@app.route('/<team>/', strict_slashes=False)
+@login_required
+def team_page(team):
+    # Store the current team in the session
+    session['current_team'] = team
+
+    user = app.get_current_user()
+    return render_template('team.html', team=team, user=user)
+   
+
+
+# --- Logout route ---
+@app.route('/logout')
+def logout():
+    app.logout_user()
+    return redirect(url_for('index'))
+
+
+
 if __name__ == '__main__':
+    init_app()
     app.run(host='0.0.0.0', port=5000, debug=True)
