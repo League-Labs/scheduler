@@ -265,6 +265,8 @@ Provide both INFO and DEBUG level logging for the cache threat loop.
 Implement this feature with a class, RecacheWorker, in recache.py. Start the thread when the 
 flask app is created, and stop the thread when the program exits. 
 
+Create a unittest for the RecacheWorker
+
 
 ### Sprint 10: Github Team Part 3
 

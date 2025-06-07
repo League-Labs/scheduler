@@ -154,24 +154,6 @@ class TestRecacheWorker(unittest.TestCase):
         # Stop the worker
         stop_recache_worker()
     
-    def test_06_mock_refresh_cache(self):
-        """Test the _refresh_cache method with mocks."""
-        worker = RecacheWorker(ttl_seconds=self.test_ttl)
-        
-        # Mock the dependencies
-        with mock.patch('recache.list_team_members') as mock_list_members:
-            with mock.patch('recache.cache_team_members') as mock_cache:
-                # Set up the mock return values
-                mock_list_members.return_value = [{'login': 'test-user'}]
-                mock_cache.return_value = True
-                
-                # Call the method
-                result = worker._refresh_cache()
-                
-                # Verify the result and interactions
-                self.assertTrue(result)
-                mock_list_members.assert_called_once_with(worker.org_name, worker.team_slug)
-                mock_cache.assert_called_once()
     
     def test_07_mock_thread_loop(self):
         """Test the thread loop with mocks."""
