@@ -148,6 +148,7 @@ def list_team_members(org_name, team_slug):
                 'url': member.url
             })
         logger.info(f"Found {len(members)} members in team {org_name}/{team_slug}")
+        
         return members
     except GithubException as e:
         logger.error(f"Failed to list team members: {e}")
@@ -185,7 +186,14 @@ def is_team_member(username, org_name, team_slug):
         
         # Check if the user is a member of the team
         user = client.get_user(username)
-        return target_team.has_in_members(user)
+        is_member = target_team.has_in_members(user)
+        
+        if not is_member:
+            logger.info(f"User {username} confirmed not in team by GitHub API")
+        else:
+            logger.info(f"User {username} confirmed in team by GitHub API")
+        
+        return is_member
     except UnknownObjectException:
         logger.warning(f"User {username} or team {team_slug} not found")
         return False
