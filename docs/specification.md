@@ -282,4 +282,6 @@ database, not the Github API
 
 - Add a command 'team <team_name> -d' to the cli to remove all of the selection
 records for the team ( remember this is the dayhour selections team, not the
-github team )
+github team ), and therefore the whole team record
+- Add a command `team <team_name> -u' to list all of the users who have
+contributed to the team calendar

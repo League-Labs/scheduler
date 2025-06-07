@@ -68,7 +68,7 @@ li {
 .schedule-cell.selected {
     outline: 2px solid #999;
     position: relative;
-    color: #fff;
+    color: #222;
 }
 .schedule-row {
     display: grid;
@@ -99,11 +99,11 @@ li {
 }
 .bg-100 {
     background: #217a2b !important;
-    color: #fff;
+    color: #222;
 }
 .bg-1st {
     background: #43b047 !important;
-    color: #fff;
+    color: #222;
 }
 .bg-2nd {
     background: #e0e388 !important;

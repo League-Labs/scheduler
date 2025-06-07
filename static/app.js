@@ -24,10 +24,8 @@ function getCellColor(dayhour) {
     const counts = Object.values(info.dayhours).filter(x => x > 0);
     const uniqueSorted = Array.from(new Set(counts)).sort((a, b) => b - a);
     if (uniqueSorted.length === 0) return 'bg-white';
-    if (count === uniqueSorted[0]) {
-        if (count === info.count) return 'bg-100'; // 100% of users
-        return 'bg-1st'; // 1st most common (not 100%)
-    }
+    if (count === info.count) return 'bg-100'; // 100% of users
+    if (count === uniqueSorted[0]) return 'bg-1st'; // 1st most common (not 100%)
     if (uniqueSorted[1] !== undefined && count === uniqueSorted[1]) return 'bg-2nd';
     if (uniqueSorted[2] !== undefined && count === uniqueSorted[2]) return 'bg-3rd';
     if (info.count && count / info.count < 0.7) return 'bg-red';
