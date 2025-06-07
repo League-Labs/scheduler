@@ -3,7 +3,8 @@ services:
   web:
     build: .
     command: gunicorn -b 0.0.0.0:8000 app:app
-
+    depends_on:
+      - mongo
 
     # These labels set up the domain name in the Caddy proxy
     labels:
@@ -14,11 +15,27 @@ services:
     #  - "8000:8000"
 
     env_file:
-      - .env
+      - .env.docker
     
     networks: # Must exist to receive traffic from Caddy
       - caddy
+      - app-network
+
+  mongo:
+    image: mongo:6-jammy
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - app-network
+    # Uncomment to expose MongoDB port for development
+    # ports:
+    #   - "27017:27017"
 
 networks:
   caddy:
     external: true
+  app-network:
+    driver: bridge
+
+volumes:
+  mongo-data:

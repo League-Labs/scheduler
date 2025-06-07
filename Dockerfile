@@ -7,6 +7,9 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt \
     && pip install --no-cache-dir gunicorn
 
+# Copy environment files
+COPY .env.docker ./.env
+
 COPY . .
 
 ENV PYTHONUNBUFFERED=1

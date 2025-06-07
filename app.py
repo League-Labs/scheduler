@@ -13,6 +13,10 @@ from pymongo import MongoClient
 def init_app():
     # Load environment variables from .env
     load_dotenv()
+    
+    # Try loading .env.docker if we're in a Docker environment
+    if os.path.exists('.env'):
+        load_dotenv('.env', override=True)
 
     app = Flask(__name__)
     app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'dev-secret-key')  # For development only
@@ -185,16 +189,23 @@ def hello():
     user = app.get_current_user()
     return render_template('hello.html', user=user)
 
-# --- Root route (for completeness, not required in Sprint 1) ---
+# --- Root route: List teams with user counts ---
 @app.route('/')
 def index():
-    # Check if user is logged in and has a current team
-    if app.get_current_user() and session.get('current_team'):
-        return redirect(url_for('team_page', team=session['current_team']))
 
-    # List all teams (keys in userteam_selections)
-    teams = sorted(app.userteam_selections.keys())
-    return render_template('index.html', teams=teams)
+
+    # Get all teams from the database with user counts
+    db = app.db
+    pipeline = [
+        {"$group": {"_id": "$team", "user_count": {"$sum": 1}}},
+        {"$sort": {"_id": 1}}  # Sort by team name
+    ]
+    team_data = list(db.userteam.aggregate(pipeline))
+    
+    # Format the data for the template
+    teams_with_counts = [{"name": team["_id"], "count": team["user_count"]} for team in team_data]
+    
+    return render_template('index.html', teams=teams_with_counts)
 
 # --- GET and POST /<team>/selections ---
 @app.route('/<team>/selections', methods=['GET', 'POST'])
@@ -251,9 +262,17 @@ def team_page(team):
 # --- Logout route ---
 @app.route('/logout')
 def logout():
+    # Clear the Flask-Dance OAuth token
+    if hasattr(github, 'token'):
+        del github.token
+    
+    # Clear the user session
     app.logout_user()
+    
+    # Clear any other session data that might remain
+    session.clear()
+    
     return redirect(url_for('index'))
-
 
 
 # In your Flask app, ensure the database is initialized on startup if not present
