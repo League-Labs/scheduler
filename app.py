@@ -97,6 +97,10 @@ def init_app():
         scope='user:email',
         storage=MongoStorage()
     )
+    
+    # Set OAuth parameters to always prompt for account selection
+    github_bp.session.params["prompt"] = "select_account"
+    
     app.register_blueprint(github_bp, url_prefix="/login")
 
     init_db(db)
@@ -180,16 +184,22 @@ def login():
     if user:
         return redirect(url_for('index'))
     
+    # Clear any existing OAuth tokens to force new login
+    if hasattr(github, 'token'):
+        del github.token
+        
     if github.authorized:
         user_resp = github.get('/user')
         if user_resp.ok:
             app.login_user(user_resp.json().get('login'))
             next_url = session.pop('next', url_for('index'))
             return redirect(next_url)
+    
+    # Redirect to GitHub OAuth login
     return redirect(url_for('github.login'))
 
 # --- After Github OAuth, set session and redirect ---
-@app.route('/login/github/authorized')
+@app.route('/login/github/auth') # DO NOT CHANGE THIS ROUTE!
 def github_authorized():
     if not github.authorized:
         logger.error("GitHub OAuth not authorized in callback")
