@@ -15,7 +15,20 @@ def init_app():
     load_dotenv()
 
     app = Flask(__name__)
-    app.secret_key = 'dev-secret-key'  # For development only
+    app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'dev-secret-key')  # For development only
+    
+    # Set server name if EXTERNAL_URL is defined to ensure correct URL generation
+    external_url = os.environ.get('EXTERNAL_URL')
+    if external_url:
+        parsed = urlparse(external_url)
+        app.config['SERVER_NAME'] = parsed.netloc
+        
+    # Trust proxy headers for HTTPS detection when behind reverse proxy
+    app.config['PREFERRED_URL_SCHEME'] = 'https'
+    
+    # Tell Flask that it's behind a proxy - handle X-Forwarded-Proto, Host, For headers
+    from werkzeug.middleware.proxy_fix import ProxyFix
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1, x_for=1)
 
     # Allow OAuth over http in debug mode for development
     if app.debug or os.environ.get('FLASK_ENV') == 'development':
@@ -46,9 +59,18 @@ def init_app():
     # Register Flask-Dance Github blueprint
     GITHUB_CLIENT_ID = os.environ.get('GITHUB_OAUTH_CLIENT_ID')
     GITHUB_CLIENT_SECRET = os.environ.get('GITHUB_OAUTH_CLIENT_SECRET')
+    
+    # Configure session cookie for HTTPS
+    app.config['SESSION_COOKIE_SECURE'] = True
+    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+    
+    # Configure Flask-Dance to use HTTPS for OAuth callback
     github_bp = make_github_blueprint(
         client_id=GITHUB_CLIENT_ID,
         client_secret=GITHUB_CLIENT_SECRET,
+        redirect_to='github_authorized',
+        redirect_url=None,  # Let Flask-Dance build the URL based on app config
+        scope='user:email',
     )
     app.register_blueprint(github_bp, url_prefix="/login")
 
@@ -96,9 +118,23 @@ def handle_test_user_login():
         query = parse_qs(url.query)
         query.pop('user', None)
         new_query = urlencode(query, doseq=True)
-        new_url = urlunparse((url.scheme, url.netloc, url.path, url.params, new_query, url.fragment))
+        # Ensure we use the correct scheme when generating URLs
+        scheme = request.headers.get('X-Forwarded-Proto', url.scheme)
+        new_url = urlunparse((scheme, url.netloc, url.path, url.params, new_query, url.fragment))
         return redirect(new_url)
     
+
+# Ensure correct URL schemes in generated URLs
+@app.before_request
+def fix_scheme():
+    scheme = request.headers.get('X-Forwarded-Proto')
+    if scheme and scheme == 'https':
+        request.environ['wsgi.url_scheme'] = 'https'
+        # This is important for Flask-Dance OAuth
+        os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '0'
+    elif app.debug or os.environ.get('FLASK_ENV') == 'development':
+        os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
+
 
 def login_required(f):
     @wraps(f)
