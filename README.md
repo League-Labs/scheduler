@@ -50,6 +50,44 @@ For local development:
 
 For development with Docker:
 
+## GitHub Team Integration
+
+The application can restrict access to members of a specific GitHub team.
+
+### Setup
+
+1. Create a personal access token with `read:org` scope at https://github.com/settings/tokens
+
+2. Add these variables to your environment file:
+
+   ```
+   GITHUB_TOKEN=your_personal_access_token
+   GITHUB_TEAM=https://github.com/orgs/your-org/teams/your-team
+   ```
+
+### CLI Commands
+
+The application includes a CLI for working with GitHub teams:
+
+List all teams in an organization:
+
+```bash
+python cli.py list-teams your-org
+```
+
+List members of a specific team:
+
+```bash
+python cli.py list-members your-org your-team
+```
+
+If you've configured the `GITHUB_TEAM` environment variable, you can omit the arguments:
+
+```bash
+python cli.py list-teams
+python cli.py list-members
+```
+
 ```bash
 just dev-docker
 ```

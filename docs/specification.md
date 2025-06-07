@@ -26,6 +26,11 @@ application without being logged in the user is redirected to the login flow,
 but the application will save the original URL in the session. After login, the
 original URL is restored. 
 
+For deployment, the configuration can specify a team ( secified by the full team
+URL ) in the env var GITHUB_TEAM. If specified, only members of that team will
+be allowed to log in
+
+
 ## User Interface
 
 There is only one page to the application: a view of a schedule for a week, with
@@ -174,19 +179,22 @@ and test it before going on to the next step.
 - Create the GET and POST  routes for `/<team>/selections`
 - Test loging in as test1, then POST selections and GET them again. 
 - Create the routes for /<team>/info to get info about the team
-- Test POSTing selections for the test1, test2 and test3 users and verify that /<team>/info works
+- Test POSTing selections for the test1, test2 and test3 users and verify that
+  /<team>/info works
 
 ### Sprint3: Github Login
 
 - Implement Github login
-- Create a section in the README with instructions for me to set up Github Oauth ( like getting tokens from )
+- Create a section in the README with instructions for me to set up Github Oauth
+  ( like getting tokens from )
 - Let me validate that the logins work. 
 
 ### Sprint4: Add Jinja2 Templates
 
-Setup Jinja templates. Create a page 'base.html' for the basic structure of the application
-( head, title, body, etc ). From base.html, derive a `page.html` that is tailored with the style for
-the pages in this application. THen create pages for: 
+Setup Jinja templates. Create a page 'base.html' for the basic structure of the
+application ( head, title, body, etc ). From base.html, derive a `page.html`
+that is tailored with the style for the pages in this application. THen create
+pages for: 
 
 * index
 * team ( which will hold the SPA )
@@ -216,3 +224,17 @@ Setup a docker deployment.
 For the docker composed configuration, the MongoDB connection string is provided
 via the MONGO_URI environment variable, in the .env file. This file and
 variablel should be referenced in the Docker configuration
+
+### Sprint8: Github Team
+
+See the section "## Login" for a description of the used of teams in the login
+process. 
+
+- Create a github.py file that has functions for using the Github API to get a
+list of Github accounts that are members of the team specified in GITHUB_TEAM
+- Create a click CLI program, in file cli.py, that has commands that can (1)
+list the teams that the GITHUB_TOKEN has access to and (2) list the members of a
+given team
+- Update the app so that if GITHUB_TEAM is specified, only users that are a
+member of the team can login. 
+

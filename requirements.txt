@@ -11,3 +11,6 @@ ipykernel
 pymongo
 python-dotenv
 gunicorn
+click
+requests
+pygithub

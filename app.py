@@ -11,6 +11,7 @@ from urllib.parse import urlparse, urlunparse, parse_qs, urlencode
 import logging
 from pymongo import MongoClient
 from mongo import MongoStorage
+from github import parse_team_url, is_team_member
 
 def init_app():
     # Load environment variables from .env
@@ -215,6 +216,18 @@ def github_authorized():
         if not github_username:
             logger.error("No username found in GitHub response")
             return 'No username found in GitHub response', 400
+        
+        # Check if user is a member of the required team
+        github_team = os.environ.get('GITHUB_TEAM')
+        if github_team:
+            org_name, team_slug = parse_team_url(github_team)
+            if org_name and team_slug:
+                if not is_team_member(github_username, org_name, team_slug):
+                    logger.warning(f"User {github_username} is not a member of team {org_name}/{team_slug}")
+                    return f"Access denied: You must be a member of the {org_name}/{team_slug} team", 403
+                logger.info(f"User {github_username} is a verified member of team {org_name}/{team_slug}")
+            else:
+                logger.error(f"Invalid GITHUB_TEAM format: {github_team}")
             
         logger.info(f"Successful GitHub login for user: {github_username}")
         app.login_user(github_username)
