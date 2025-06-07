@@ -212,7 +212,7 @@ Setup static files for style.css, the application .js file, and images.
 - create a justfile to run management commands: run the development server and
   recreate the database. 
 
-### Sprint7: Dockerize
+### Sprint 7: Dockerize
 
 Setup a docker deployment. 
 
@@ -225,30 +225,59 @@ For the docker composed configuration, the MongoDB connection string is provided
 via the MONGO_URI environment variable, in the .env file. This file and
 variablel should be referenced in the Docker configuration
 
-### Sprint8: Github Team
+### Sprint 8: Github Team Part 1
+
+- Create a github.py file that has functions for using the Github API to get a
+list of Github accounts that are members of the team specified in GITHUB_TEAM
+
+- Create a click CLI command, in file cli.py, that has commands that can 
+
+    (1) list the teams that the GITHUB_TOKEN has access 
+    (2) list the members of a given team
+
+- Add a click cli command, 'cache' which has options to: 
+
+    print the cache status ( '-s/--status' )
+    invalidate the cache (-i/--invalidate) 
+    refresh (-r/--refresh)
+
+Write a test script, test/cache_test.sh, that will test the caching command. 
+
+### Sprint 9: Github Team Part 2
+
+Implement caching the teams data in the database in a thread. 
+
+Getting the list of teams and team members from Github is slow so the app should
+cache the member list in Mongo. Start a single thread that will re-cache the
+data occasionally. The re-caching process will be implemented in a persistent
+loop in thread that will: 
+
+- recache the data
+- wait for GITHUB_TEAM_TTL seconds
+- wait for a threading.Event
+- Clears the event
+- continue the loop
+
+Be sure to access the Mongo database in a thread-safe way. 
+
+Provide both INFO and DEBUG level logging for the cache threat loop. 
+
+Implement this feature with a class, RecacheWorker, in recache.py. Start the thread when the 
+flask app is created, and stop the thread when the program exits. 
+
+
+### Sprint 10: Github Team Part 3
 
 See the section "## Login" for a description of the used of teams in the login
 process. 
 
-- Create a github.py file that has functions for using the Github API to get a
-list of Github accounts that are members of the team specified in GITHUB_TEAM
-- Create a click CLI program, in file cli.py, that has commands that can (1)
-list the teams that the GITHUB_TOKEN has access to and (2) list the members of a
-given team
 - Update the app so that if GITHUB_TEAM is specified, only users that are a
-member of the team can login. 
+member of the team can login. This implementation should only consult the Mongo
+database, not the Github API
+- use @app.after_request to trigger the teams member recaching event. 
 
-Getting the list of teams and team members from Github is slow so the app should
-cache the member list in Mongo. Start a single thread that will re-cache the data 
-occasionally. The re-caching process will be implemented in a persistent thread that will: 
+## Sprint 11: Misc
 
-- recache the data
-- waits for a GITHUB_TEAM_TTL seconds
-- waits for a threading.Event
-- Clears the event
-
-Besure to acess the Mongo database in a thread-safe way. 
-
-Also add a command to the cli, 'cache' which has options to: print the cache
-status ( '-s/--status' ), invalidate the cache (-i/--invalidate) and  refresh (
--r/--refresh)
+- Add a command 'team <team_name> -d' to the cli to remove all of the selection
+records for the team ( remember this is the dayhour selections team, not the
+github team )

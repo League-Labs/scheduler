@@ -107,12 +107,7 @@ def list_teams(org_name):
 
 def list_team_members(org_name, team_slug):
     """List all members of a GitHub team."""
-    # Try to get from cache first if db is provided
-    if db is not None:
-        from mongo import get_cached_team_members
-        cached_members = get_cached_team_members(db, org_name, team_slug)
-        if cached_members:
-            return cached_members
+
     
     client = get_github_client()
     if not client:

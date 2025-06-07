@@ -1,17 +1,26 @@
-from flask import Flask, session, redirect, url_for, request, jsonify, render_template
-from flask.sessions import SecureCookieSessionInterface
-from flask_session import Session
+import atexit
 import json
-from collections import defaultdict
-import os
-from flask_dance.contrib.github import make_github_blueprint, github
-from dotenv import load_dotenv
-from functools import wraps
-from urllib.parse import urlparse, urlunparse, parse_qs, urlencode
 import logging
+import os
+from collections import defaultdict
+from functools import wraps
+from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
+
+from dotenv import load_dotenv
+from flask import (Flask, jsonify, redirect, render_template, request, session,
+                   url_for)
+from flask.sessions import SecureCookieSessionInterface
+from flask_dance.contrib.github import github, make_github_blueprint
+from flask_session import Session
 from pymongo import MongoClient
+
+from gh_api import parse_team_url
 from mongo import MongoStorage
-from gh import parse_team_url, is_team_member
+from recache import start_recache_worker, stop_recache_worker
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 def init_app():
     # Load environment variables from .env
@@ -106,6 +115,17 @@ def init_app():
 
     init_db(db)
 
+    # Start the GitHub team recache worker if GITHUB_TEAM is set
+    if os.environ.get('GITHUB_TEAM'):
+        logger.info("Starting GitHub team recache worker")
+        recache_worker = start_recache_worker()
+        # Register cleanup handler to stop the worker when the app exits
+        atexit.register(stop_recache_worker)
+    else:
+        logger.info("GITHUB_TEAM not set, recache worker not started")
+
+    app.logger = logger
+
     return app
 
 
@@ -128,6 +148,16 @@ app = init_app()
 # Set up logger
 logger = logging.getLogger("scheduler")
 logging.basicConfig(level=logging.INFO)
+
+
+@app.after_request
+def after_request(response):
+    """
+    After request handler to potentially trigger cache refresh.
+    This is a placeholder for Sprint 10 implementation.
+    """
+    # The actual implementation for team membership validation will be in Sprint 10
+    return response
 
 
 @app.before_request
@@ -217,17 +247,6 @@ def github_authorized():
             logger.error("No username found in GitHub response")
             return 'No username found in GitHub response', 400
         
-        # Check if user is a member of the required team
-        github_team = os.environ.get('GITHUB_TEAM')
-        if github_team:
-            org_name, team_slug = parse_team_url(github_team)
-            if org_name and team_slug:
-                if not is_team_member(github_username, org_name, team_slug):
-                    logger.warning(f"User {github_username} is not a member of team {org_name}/{team_slug}")
-                    return f"Access denied: You must be a member of the {org_name}/{team_slug} team", 403
-                logger.info(f"User {github_username} is a verified member of team {org_name}/{team_slug}")
-            else:
-                logger.error(f"Invalid GITHUB_TEAM format: {github_team}")
             
         logger.info(f"Successful GitHub login for user: {github_username}")
         app.login_user(github_username)

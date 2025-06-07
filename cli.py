@@ -3,15 +3,19 @@
 CLI tool for working with GitHub teams in the scheduler application.
 
 Usage:
-    python cli.py list-teams [org_name]
-    python cli.py list-members [org_name] [team_slug]
+    python cli.py teams [org_name]                   List teams in an organization
+    python cli.py members [org_name] [team_slug]     List members of a team
+    python cli.py cache -s                           Show cache status
+    python cli.py cache -i                           Invalidate cache
+    python cli.py cache -r                           Refresh cache
 """
 import os
 import sys
 import logging
 import click
 from dotenv import load_dotenv
-from gh import list_teams, list_team_members, parse_team_url
+from gh_api import parse_team_url, list_teams, list_team_members
+from mongo import get_cache_status, invalidate_team_cache, cache_team_members
 
 @click.group()
 def cli():
@@ -91,6 +95,94 @@ def members(org_or_team=None, team_slug=None):
     click.echo(f"Found {len(members)} members:")
     for member in members:
         click.echo(f"  - {member['login']}")
+
+@cli.command()
+@click.option('-s', '--status', is_flag=True, help='Show cache status')
+@click.option('-i', '--invalidate', is_flag=True, help='Invalidate cache')
+@click.option('-r', '--refresh', is_flag=True, help='Refresh cache')
+@click.option('--org', help='Organization name for specific operations')
+@click.option('--team', help='Team slug for specific operations')
+def cache(status, invalidate, refresh, org, team):
+    """Manage GitHub team cache."""
+    # If no flags are provided, show help
+    if not any([status, invalidate, refresh]):
+        click.echo(click.get_current_context().get_help())
+        return
+    
+    # Handle org/team format if provided in --team
+    if team and '/' in team and not org:
+        parts = team.split('/')
+        if len(parts) == 2:
+            org, team = parts
+    
+    # Get org/team from GITHUB_TEAM env var if not provided
+    if not org:
+        github_team = os.environ.get('GITHUB_TEAM')
+        if github_team:
+            org, team_from_env = parse_team_url(github_team)
+            if not team:  # Only use from env if not explicitly provided
+                team = team_from_env
+    
+    # Show cache status
+    if status:
+        click.echo("Cache Status:")
+        status_info = get_cache_status()
+        
+        if 'error' in status_info:
+            click.echo(f"Error: {status_info['error']}")
+            return
+        
+        total = status_info.get('total_cached_teams', 0)
+        click.echo(f"Total cached teams: {total}")
+        
+        if total > 0:
+            click.echo("\nCached Teams:")
+            for team_info in status_info.get('teams', []):
+                click.echo(f"  - {team_info['org_name']}/{team_info['team_slug']}")
+                click.echo(f"    Members: {team_info['member_count']}")
+                click.echo(f"    Updated: {team_info['updated_at']}")
+                click.echo(f"    Expires: {team_info['expires_at']}")
+                click.echo(f"    Expires in: {team_info['expires_in_seconds']} seconds")
+                click.echo(f"    Status: {'Expired' if team_info['is_expired'] else 'Valid'}")
+                click.echo("")
+    
+    # Invalidate cache
+    if invalidate:
+        if org and team:
+            click.echo(f"Invalidating cache for team: {org}/{team}")
+            count = invalidate_team_cache(org_name=org, team_slug=team)
+            click.echo(f"Invalidated {count} cache entries")
+        elif org:
+            click.echo(f"Invalidating cache for all teams in organization: {org}")
+            count = invalidate_team_cache(org_name=org)
+            click.echo(f"Invalidated {count} cache entries")
+        else:
+            click.echo("Invalidating all team caches")
+            count = invalidate_team_cache()
+            click.echo(f"Invalidated {count} cache entries")
+    
+    # Refresh cache
+    if refresh:
+        if not org:
+            click.echo("Error: Organization name required for refresh. Use --org option.")
+            return
+        
+        if not team:
+            click.echo("Error: Team slug required for refresh. Use --team option.")
+            return
+        
+        click.echo(f"Refreshing cache for team: {org}/{team}")
+        members = list_team_members(org, team)
+        
+        if not members:
+            click.echo(f"No members found for team {org}/{team}")
+            return
+        
+        success = cache_team_members(org_name=org, team_slug=team, members=members)
+        if success:
+            click.echo(f"Successfully cached {len(members)} members for team {org}/{team}")
+        else:
+            click.echo(f"Failed to cache members for team {org}/{team}")
 
 if __name__ == '__main__':
     # Configure logging
