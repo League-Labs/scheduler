@@ -23,17 +23,7 @@ def init_db():
     # Create GitHub team cache collection with TTL index
     if 'github_teams_cache' not in existing_collections:
         db.create_collection('github_teams_cache')
-        # Create TTL index on the expires_at field
-        db.github_teams_cache.create_index('expires_at', expireAfterSeconds=0)
-    else:
-        # Check if TTL index exists
-        has_ttl_index = False
-        for idx in db.github_teams_cache.list_indexes():
-            if idx.get('name') == 'expires_at_1':
-                has_ttl_index = True
-                break
-        if not has_ttl_index:
-            db.github_teams_cache.create_index('expires_at', expireAfterSeconds=0)
+
     
     # Create cache key index for faster lookups
     db.github_teams_cache.create_index('cache_key', unique=True)

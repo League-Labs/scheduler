@@ -125,7 +125,7 @@ class TestRecacheWorker(unittest.TestCase):
         
         stop_recache_worker()
     
-    @unittest.skip("Integration test - may take time and require real GitHub API access")
+    #@unittest.skip("Integration test - may take time and require real GitHub API access")
     def test_05_cache_refresh_integration(self):
         """
         Test that the worker actually refreshes the cache.
@@ -136,7 +136,7 @@ class TestRecacheWorker(unittest.TestCase):
         
         # Start the worker and let it run for a while
         worker = start_recache_worker()
-        time.sleep(15)  # Give it time to fetch and cache data
+        time.sleep(30)  # Give it time to fetch and cache data
         
         # Check if the cache was populated
         status = get_cache_status(self.db)

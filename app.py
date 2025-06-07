@@ -131,14 +131,26 @@ def init_app():
 
 
 def init_db(db):
+    # Get the list of existing collections first to avoid errors
+    existing_collections = db.list_collection_names()
+    
     # Create collections only if they do not exist
-    if 'users' not in db.list_collection_names():
+    if 'users' not in existing_collections:
         db.create_collection('users', capped=False)
-    if 'userteam' not in db.list_collection_names():
+    if 'userteam' not in existing_collections:
         db.create_collection('userteam', capped=False)
-    # Ensure indexes exist
+    
+    # Create GitHub team cache collection 
+    if 'github_teams_cache' not in existing_collections:
+        db.create_collection('github_teams_cache')
+    
+    # Create cache key index for faster lookups
+    db.github_teams_cache.create_index('cache_key', unique=True)
+    
+    # Ensure other indexes exist
     db.users.create_index('username', unique=True)
     db.userteam.create_index([('user_id', 1), ('team', 1)], unique=True)
+    
     # Add test users if not present
     for username in ['test1', 'test2', 'test3']:
         db.users.update_one({'username': username}, {'$setOnInsert': {'username': username}}, upsert=True)

@@ -141,7 +141,6 @@ def cache(status, invalidate, refresh, org, team):
                 click.echo(f"  - {team_info['org_name']}/{team_info['team_slug']}")
                 click.echo(f"    Members: {team_info['member_count']}")
                 click.echo(f"    Updated: {team_info['updated_at']}")
-                click.echo(f"    Expires: {team_info['expires_at']}")
                 click.echo(f"    Expires in: {team_info['expires_in_seconds']} seconds")
                 click.echo(f"    Status: {'Expired' if team_info['is_expired'] else 'Valid'}")
                 click.echo("")

@@ -62,11 +62,7 @@ def cache_team_members(db=None, org_name=None, team_slug=None, members=None):
         # Ensure the collection exists with TTL index
         if 'github_teams_cache' not in db.list_collection_names():
             db.create_collection('github_teams_cache')
-            # Create TTL index on the expires_at field
-            db.github_teams_cache.create_index('expires_at', expireAfterSeconds=0)
-        
-        # Calculate expiration time
-        expires_at = datetime.datetime.now(timezone.utc) + datetime.timedelta(seconds=ttl_seconds)
+
 
         # Cache key is a combination of org and team
         cache_key = f"{org_name}/{team_slug}"
@@ -79,7 +75,6 @@ def cache_team_members(db=None, org_name=None, team_slug=None, members=None):
                     'org_name': org_name,
                     'team_slug': team_slug,
                     'members': members,
-                    'expires_at': expires_at,
                     'updated_at': datetime.datetime.now(timezone.utc)
                 }
             },
@@ -107,13 +102,9 @@ def get_cached_team_members(db, org_name, team_slug):
     cached = db.github_teams_cache.find_one({'cache_key': cache_key})
     
     if cached:
-        # Check if it's still valid (MongoDB TTL might have a delay in deletion)
-        if 'expires_at' in cached and cached['expires_at'] > datetime.datetime.now(timezone.utc):
-            logger.info(f"Cache hit for team {cache_key}, found {len(cached['members'])} members")
-            return cached.get('members')
-        else:
-            logger.info(f"Cache expired for team {cache_key}")
-            return None
+
+        logger.info(f"Cache hit for team {cache_key}, found {len(cached['members'])} members")
+        return cached.get('members')
     else:
         logger.info(f"Cache miss for team {cache_key}")
         return None
@@ -214,26 +205,19 @@ def get_cache_status(db=None):
                 team_slug = team.get('team_slug', 'unknown')
                 members = team.get('members', [])
                 member_count = len(members)
-                
-                # Handle expires_at and updated_at fields
-                expires_at = team.get('expires_at', now)
+
                 updated_at = team.get('updated_at', now)
-                
-                # Calculate expiration time
-                expires_in = (expires_at - now).total_seconds() if hasattr(expires_at, 'total_seconds') else 0
-                
+
                 # Format times for display
                 updated_at_str = updated_at.strftime('%Y-%m-%d %H:%M:%S UTC') if hasattr(updated_at, 'strftime') else 'unknown'
-                expires_at_str = expires_at.strftime('%Y-%m-%d %H:%M:%S UTC') if hasattr(expires_at, 'strftime') else 'unknown'
+
                 
                 result["teams"].append({
                     "org_name": org_name,
                     "team_slug": team_slug,
                     "member_count": member_count,
                     "updated_at": updated_at_str,
-                    "expires_at": expires_at_str,
-                    "expires_in_seconds": max(0, int(expires_in)),
-                    "is_expired": expires_in <= 0
+
                 })
             except Exception as e:
                 logger.warning(f"Skipping team entry due to error: {e}")
