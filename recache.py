@@ -2,8 +2,9 @@
 """
 Thread-based worker for recaching GitHub team members.
 
-This module implements a worker thread that periodically refreshes the GitHub team
-members cache in MongoDB to ensure that team membership data is up-to-date.
+This module implements a worker thread that performs a single refresh of the GitHub team
+members cache in MongoDB and then exits. Each call to start_recache_worker() creates
+a new worker thread that runs once and terminates.
 """
 import os
 import time
@@ -14,39 +15,33 @@ from pymongo import MongoClient
 
 from gh_api import parse_team_url, list_team_members
 from mongo import get_mongo_connection, cache_team_members
-
+from time import time 
 # Configure logger
 logger = logging.getLogger(__name__)
 
+logger.setLevel(logging.DEBUG)
+
 class RecacheWorker:
     """
-    Worker thread that periodically refreshes the GitHub team members cache.
-    
-    The worker runs in a persistent loop that:
-    1. Recaches the data
-    2. Waits for GITHUB_TEAM_TTL seconds
-    3. Waits for a threading.Event signal (for immediate refresh)
-    4. Clears the event
-    5. Continues the loop
+    Worker thread that runs one GitHub team members cache refresh and then exits.
     """
     
-    def __init__(self, ttl_seconds=3600):
+    def __init__(self, team_uri, ttl_seconds=3600):
         """
         Initialize the recache worker.
         
         Args:
-            ttl_seconds: Time to live in seconds for the cache (default: 1 hour)
+            team_uri: GitHub team URI to cache
         """
-        self.ttl_seconds = ttl_seconds
         self.thread = None
-        self.stop_event = threading.Event()
-        self.refresh_event = threading.Event()
-        self.is_running = False
+
+        self.next_run = time()
+        self.ttl_seconds = ttl_seconds
         
-        # Get GitHub team from environment
-        self.github_team = os.environ.get('GITHUB_TEAM')
+        # Get GitHub team from parameter
+        self.github_team = team_uri
         if not self.github_team:
-            logger.warning("GITHUB_TEAM environment variable not set. Cache worker will not run.")
+            logger.warning("GITHUB_TEAM not provided. Cache worker will not run.")
         else:
             logger.info(f"Initialized RecacheWorker for team: {self.github_team}")
             
@@ -69,85 +64,31 @@ class RecacheWorker:
             logger.warning("Cannot start RecacheWorker: GITHUB_TEAM not set or invalid")
             return
             
-        logger.info(f"Starting RecacheWorker thread (TTL: {self.ttl_seconds}s)")
-        self.stop_event.clear()
-        self.is_running = True
-        self.thread = threading.Thread(target=self._run, daemon=True)
+
+        logger.info("Starting RecacheWorker thread for one-time cache refresh")
+        self.thread = threading.Thread(target=self._run)
         self.thread.start()
         
-    def stop(self):
-        """Stop the recache worker thread."""
-        if self.thread is None or not self.thread.is_alive():
-            logger.debug("RecacheWorker thread is not running")
-            return
+    def start_maybe(self):
+        """Start the recache worker thread if not already running."""
+        if self.thread is not None and self.thread.is_alive():
+            logger.debug("RecacheWorker thread is already running")
+           
             
-        logger.info("Stopping RecacheWorker thread")
-        self.is_running = False
-        self.stop_event.set()
-        self.refresh_event.set()  # Wake up the thread if it's waiting
-        
-        # Wait for the thread to terminate
-        self.thread.join(timeout=6)  # Increased timeout to be slightly longer than the test wait
-        if self.thread.is_alive():
-            logger.warning("RecacheWorker thread did not terminate gracefully")
-            # Make the thread a daemon so it won't block program exit
-            self.thread = None
-        else:
-            logger.info("RecacheWorker thread stopped successfully")
-            
-    def trigger_refresh(self):
-        """Trigger an immediate refresh of the cache."""
-        if self.thread is None or not self.thread.is_alive():
-            logger.debug("Cannot trigger refresh: RecacheWorker thread is not running")
-            return False
-            
-        logger.debug("Triggering immediate cache refresh")
-        self.refresh_event.set()
-        return True
-        
+        if time() > self.next_run:
+            logger.debug("RecacheWorker TTL expired, starting new thread")
+            self.next_run = time() + self.ttl_seconds
+
+            self.start()
+
     def _run(self):
-        """Main thread loop for the recache worker."""
+        """Run one cache refresh and exit."""
         logger.info("RecacheWorker thread started")
-        
-        while self.is_running and not self.stop_event.is_set():
-            try:
-                # Perform cache refresh
-                self._refresh_cache()
-                
-                # Wait for TTL or until refresh is triggered
-                logger.debug(f"Waiting {self.ttl_seconds} seconds until next cache refresh")
-                wait_start = datetime.now(timezone.utc)
-                
-                # Wait for either the TTL to expire or the refresh event to be set
-                while self.is_running and not self.stop_event.is_set():
-                    # Check if we should refresh (either due to timeout or event)
-                    elapsed = (datetime.now(timezone.utc) - wait_start).total_seconds()
-                    if elapsed >= self.ttl_seconds or self.refresh_event.is_set():
-                        break
-                    
-                    # Wait for a short time or until the refresh event is set
-                    wait_remaining = max(0.1, min(5, self.ttl_seconds - elapsed))
-                    self.refresh_event.wait(wait_remaining)
-                
-                # Clear the refresh event if it was set
-                if self.refresh_event.is_set():
-                    logger.debug("Refresh event triggered")
-                    self.refresh_event.clear()
-                
-            except Exception as e:
-                logger.error(f"Error in RecacheWorker thread: {e}", exc_info=True)
-                # Wait a bit before retrying to avoid tight loop on persistent errors
-                time.sleep(10)
-                
+        self._refresh_cache()
         logger.info("RecacheWorker thread exiting")
     
     def _refresh_cache(self):
         """Refresh the GitHub team members cache."""
-        # Exit early if stop requested
-        if self.stop_event.is_set() or not self.is_running:
-            logger.debug("Skipping cache refresh - worker stopping")
-            return False
-            
         if not (self.org_name and self.team_slug):
             logger.error("Cannot refresh cache: organization or team slug not available")
             return False
@@ -159,11 +100,6 @@ class RecacheWorker:
             db = get_mongo_connection()
             if db is None:
                 logger.error("Failed to connect to MongoDB for cache refresh")
-                return False
-                
-            # Check again if we should stop before making API calls
-            if self.stop_event.is_set() or not self.is_running:
-                logger.debug("Stopping cache refresh - worker stopping")
                 return False
                 
             # Fetch team members from GitHub API
@@ -193,43 +129,16 @@ class RecacheWorker:
             logger.error(f"Error refreshing cache: {e}", exc_info=True)
             return False
 
-# Global instance of the recache worker
-_worker = None
 
-def start_recache_worker():
-    """Start the global recache worker."""
-    global _worker
-    
-    # Get TTL from environment or use default
-    ttl_seconds = int(os.environ.get('GITHUB_TEAM_TTL', 3600))
-    
-    if _worker is None:
-        _worker = RecacheWorker(ttl_seconds=ttl_seconds)
-    
-    _worker.start()
-    return _worker
 
 def stop_recache_worker():
-    """Stop the global recache worker."""
-    global _worker
-    if _worker is not None:
-        _worker.stop()
-        # Clear the reference to ensure garbage collection
-        if _worker.thread and _worker.thread.is_alive():
-            # If thread is still alive but we've signaled stop,
-            # clear the reference anyway - it's a daemon thread
-            _worker = None
-        else:
-            _worker = None
+    """No-op function for compatibility. Workers exit automatically."""
+    pass
 
 def trigger_recache():
-    """Trigger an immediate recache."""
-    global _worker
-    if _worker is not None:
-        return _worker.trigger_refresh()
-    return False
+    """Trigger an immediate recache by starting a new worker."""
+    return start_recache_worker()
 
 def get_recache_worker():
-    """Get the global recache worker instance."""
-    global _worker
-    return _worker
+    """Get the global recache worker instance (deprecated - workers are one-time use)."""
+    return None

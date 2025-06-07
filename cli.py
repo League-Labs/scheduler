@@ -17,6 +17,8 @@ from dotenv import load_dotenv
 from gh_api import parse_team_url, list_teams, list_team_members
 from mongo import get_cache_status, invalidate_team_cache, cache_team_members
 
+
+
 @click.group()
 def cli():
     """CLI commands for scheduler application."""
@@ -28,9 +30,7 @@ def teams(org_name=None):
     """List teams available in the GitHub organization."""
     # If org_name is not provided, try to get it from GITHUB_TEAM env var
     if not org_name:
-        github_team = os.environ.get('GITHUB_TEAM')
-        if github_team:
-            org_name, _ = parse_team_url(github_team)
+        org_name, team_name = parse_team_url(os.environ.get('GITHUB_TEAM', ''))
             
     if not org_name:
         click.echo("Error: Organization name required. Provide as argument or via GITHUB_TEAM env var.")
@@ -71,9 +71,11 @@ def members(org_or_team=None, team_slug=None):
         
     # If org_name and team_slug are not provided, try to get them from GITHUB_TEAM env var
     if not (org_name and team_slug):
-        github_team = os.environ.get('GITHUB_TEAM')
-        if github_team:
-            parsed_org, parsed_team = parse_team_url(github_team)
+          
+        parsed_org, parsed_team = parse_team_url(os.environ.get('GITHUB_TEAM', ''))
+     
+        if org_name and team_slug:
+           
             org_name = org_name or parsed_org
             team_slug = team_slug or parsed_team
     
@@ -117,9 +119,7 @@ def cache(status, invalidate, refresh, org, team):
     
     # Get org/team from GITHUB_TEAM env var if not provided
     if not org:
-        github_team = os.environ.get('GITHUB_TEAM')
-        if github_team:
-            org, team_from_env = parse_team_url(github_team)
+            org, team_from_env = parse_team_url(os.environ.get('GITHUB_TEAM', ''))
             if not team:  # Only use from env if not explicitly provided
                 team = team_from_env
     
@@ -141,8 +141,7 @@ def cache(status, invalidate, refresh, org, team):
                 click.echo(f"  - {team_info['org_name']}/{team_info['team_slug']}")
                 click.echo(f"    Members: {team_info['member_count']}")
                 click.echo(f"    Updated: {team_info['updated_at']}")
-                click.echo(f"    Expires in: {team_info['expires_in_seconds']} seconds")
-                click.echo(f"    Status: {'Expired' if team_info['is_expired'] else 'Valid'}")
+
                 click.echo("")
     
     # Invalidate cache

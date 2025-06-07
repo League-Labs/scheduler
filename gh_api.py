@@ -51,6 +51,8 @@ def parse_team_url(team_url):
         parts = urlparse(team_url).path.strip('/').split('/')
         if len(parts) >= 4 and parts[0] == 'orgs' and parts[2] == 'teams':
             return parts[1], parts[3]  # org, team
+        elif len(parts) == 2:
+            return parts[0], parts[1]
     except Exception as e:
         logger.error(f"Error parsing team URL: {e}")
     

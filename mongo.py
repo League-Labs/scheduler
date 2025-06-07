@@ -56,8 +56,7 @@ def cache_team_members(db=None, org_name=None, team_slug=None, members=None):
             logger.error("Missing required parameters for caching team members")
             return False
         
-        # Get TTL from environment or use default (1 hour)
-        ttl_seconds = int(os.environ.get('GITHUB_TEAM_TTL', 3600))
+
         
         # Ensure the collection exists with TTL index
         if 'github_teams_cache' not in db.list_collection_names():

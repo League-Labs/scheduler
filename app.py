@@ -1,24 +1,22 @@
-import atexit
 import json
 import logging
 import os
 from collections import defaultdict
+from datetime import datetime
 from functools import wraps
 from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
 from dotenv import load_dotenv
-from flask import (Flask, jsonify, redirect, render_template, request, session,
-                   url_for)
+from flask import (Flask, flash, jsonify, redirect, render_template, request,
+                   session, url_for, current_app)
 from flask.sessions import SecureCookieSessionInterface
 from flask_dance.contrib.github import github, make_github_blueprint
 from flask_session import Session
 from pymongo import MongoClient
 
-from gh_api import parse_team_url
+from gh_api import list_team_members, parse_team_url
 from mongo import MongoStorage
-from recache import start_recache_worker, stop_recache_worker
-
-import logging
+from recache import RecacheWorker
 
 logger = logging.getLogger(__name__)
 
@@ -115,14 +113,16 @@ def init_app():
 
     init_db(db)
 
-    # Start the GitHub team recache worker if GITHUB_TEAM is set
-    if os.environ.get('GITHUB_TEAM'):
-        logger.info("Starting GitHub team recache worker")
-        recache_worker = start_recache_worker()
-        # Register cleanup handler to stop the worker when the app exits
-        atexit.register(stop_recache_worker)
+    app.github_team = os.environ.get('GITHUB_TEAM')
+
+
+    # Start initial cache refresh if GITHUB_TEAM is set
+    if app.github_team:
+        logger.info("Starting initial GitHub team cache refresh")
+        app.recache_worker = RecacheWorker(app.github_team)
     else:
-        logger.info("GITHUB_TEAM not set, recache worker not started")
+        logger.info("GITHUB_TEAM not set, no initial cache refresh")
+        app.recache_worker = None
 
     app.logger = logger
 
@@ -162,13 +162,80 @@ logger = logging.getLogger("scheduler")
 logging.basicConfig(level=logging.INFO)
 
 
+def cache_result(ttl=20):
+    """
+    Decorator to cache function results for a specified number of seconds.
+    
+    Args:
+        ttl: Time to live in seconds (default: 20 seconds)
+    """
+    def decorator(func):
+        cache = {}
+        
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            now = datetime.now()
+            cache_key = str(args) + str(kwargs)
+            
+            # Check if we have a valid cached result
+            if cache_key in cache:
+                result, timestamp = cache[cache_key]
+                if (now - timestamp).total_seconds() < ttl:
+                    return result
+            
+            # Get fresh result
+            result = func(*args, **kwargs)
+            cache[cache_key] = (result, now)
+            return result
+            
+        return wrapper
+    return decorator
+
+
+@cache_result(ttl=20)
+def get_team_members():
+    
+    logger.info("Fetching team members from cache")
+    org, team = parse_team_url(current_app.github_team)
+    # Get cached team members from MongoDB
+    cache_key = f"{org}/{team}"
+    team_cache = app.db.github_teams_cache.find_one({"cache_key": cache_key})
+
+    if team_cache and 'members' in team_cache:
+        members = [m['login'] for m in team_cache['members']]
+    else:
+        members = None
+
+    # Check if the cache is too old and needs refreshing
+    if team_cache and 'updated_at' in team_cache:
+        cache_age = (datetime.now() - team_cache['updated_at']).total_seconds()
+      
+        team_ttl = int(os.environ.get('GITHUB_TEAM_TTL', 3600))  # Default to 1 hour
+        
+        logger.info(f"Team cache age: {cache_age:.1f}s (TTL: {team_ttl}s)")
+        
+        if cache_age > team_ttl and app.recache_worker:
+            logger.info("Cache too old, triggering refresh")
+            app.recache_worker.start()
+
+    elif app.recache_worker and members is None:
+        # If we have no cached data at all, trigger a refresh
+        logger.info("No cache data found, triggering refresh")
+        app.recache_worker.start()
+
+
+    return members
+
+
 @app.after_request
 def after_request(response):
     """
     After request handler to potentially trigger cache refresh.
     This is a placeholder for Sprint 10 implementation.
     """
-    # The actual implementation for team membership validation will be in Sprint 10
+
+
+
     return response
 
 
@@ -261,6 +328,19 @@ def github_authorized():
         
             
         logger.info(f"Successful GitHub login for user: {github_username}")
+
+        # Check team membership if GITHUB_TEAM is configured
+        if app.github_team:
+            members = get_team_members()
+
+            if members and github_username not in members:
+                logger.warning(f"Unauthorized login attempt by {github_username}")
+                # If not a team member, log them out and redirect to homepage
+                app.logout_user()
+                flash(f"User {github_username} is not authorized to access this application.", 'error')
+                return redirect(url_for('index'))
+
+
         app.login_user(github_username)
         
         # Store GitHub user in the database

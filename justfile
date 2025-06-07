@@ -2,7 +2,7 @@
 
 # Run the Flask development server
 dev:
-    flask run --host=0.0.0.0
+    flask run --host=0.0.0.0 --debug
 
 # Recreate the database (deletes and recreates)
 recreate-db: 
