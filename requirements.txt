@@ -4,6 +4,7 @@ Flask-Login
 Flask-Dotenv
 Flask-Cors
 flask-dance
+Flask-Session
 jupyter
 ipykernel
 pymongo
