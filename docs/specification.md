@@ -239,5 +239,16 @@ given team
 member of the team can login. 
 
 Getting the list of teams and team members from Github is slow so the app should
-cache the member list in Mongo. Create the record with a TTL ( Set in
-GITHUB_TEAM_TTL )
+cache the member list in Mongo. Start a single thread that will re-cache the data 
+occasionally. The re-caching process will be implemented in a persistent thread that will: 
+
+- recache the data
+- waits for a GITHUB_TEAM_TTL seconds
+- waits for a threading.Event
+- Clears the event
+
+Besure to acess the Mongo database in a thread-safe way. 
+
+Also add a command to the cli, 'cache' which has options to: print the cache
+status ( '-s/--status' ), invalidate the cache (-i/--invalidate) and  refresh (
+-r/--refresh)

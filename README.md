@@ -18,6 +18,9 @@ To run the application in production using Docker Compose:
    # Docker environment configuration
    GITHUB_OAUTH_CLIENT_ID=your_client_id
    GITHUB_OAUTH_CLIENT_SECRET=your_client_secret
+   GITHUB_TOKEN=your_github_personal_access_token
+   GITHUB_TEAM=https://github.com/orgs/your-org/teams/your-team
+   GITHUB_TEAM_TTL=3600
    FLASK_SECRET_KEY=secure_random_key
    MONGO_URI=mongodb://mongo:27017/scheduler
    EXTERNAL_URL=https://your-domain.com
@@ -38,6 +41,9 @@ For local development:
    ```
    GITHUB_OAUTH_CLIENT_ID=your_dev_client_id
    GITHUB_OAUTH_CLIENT_SECRET=your_dev_client_secret
+   GITHUB_TOKEN=your_github_personal_access_token
+   GITHUB_TEAM=https://github.com/orgs/your-org/teams/your-team
+   GITHUB_TEAM_TTL=3600
    FLASK_SECRET_KEY=dev_key
    MONGO_URI=mongodb://localhost:27017/scheduler
    ```
@@ -48,45 +54,31 @@ For local development:
    just dev
    ```
 
-For development with Docker:
-
 ## GitHub Team Integration
 
-The application can restrict access to members of a specific GitHub team.
+The application can restrict access to only members of a specific GitHub team:
 
-### Setup
+1. Set up a GitHub Personal Access Token with `read:org` scope:
+   - Go to GitHub Settings → Developer settings → Personal access tokens
+   - Generate a new token with the `read:org` scope
+   - Copy the token to the `GITHUB_TOKEN` environment variable
 
-1. Create a personal access token with `read:org` scope at https://github.com/settings/tokens
+2. Configure the GitHub team URL in the `GITHUB_TEAM` environment variable:
+   - Format: `https://github.com/orgs/your-org/teams/your-team`
+   - Only members of this team will be allowed to log in
 
-2. Add these variables to your environment file:
+3. Set the cache TTL for team member data in seconds:
+   - `GITHUB_TEAM_TTL=3600` (default: 1 hour)
+   - This reduces the number of API calls to GitHub and improves performance
 
-   ```
-   GITHUB_TOKEN=your_personal_access_token
-   GITHUB_TEAM=https://github.com/orgs/your-org/teams/your-team
-   ```
+4. CLI commands for working with GitHub teams:
+   - List all teams in an organization: `python cli.py teams your-org`
+   - List all members of a team: `python cli.py members your-org/your-team`
+   - Check cache status: `python cli.py cache-status`
 
-### CLI Commands
+The application caches team membership data in MongoDB with a TTL index to automatically expire old entries.
 
-The application includes a CLI for working with GitHub teams:
-
-List all teams in an organization:
-
-```bash
-python cli.py list-teams your-org
-```
-
-List members of a specific team:
-
-```bash
-python cli.py list-members your-org your-team
-```
-
-If you've configured the `GITHUB_TEAM` environment variable, you can omit the arguments:
-
-```bash
-python cli.py list-teams
-python cli.py list-members
-```
+## Development with Docker
 
 ```bash
 just dev-docker

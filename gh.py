@@ -107,6 +107,13 @@ def list_teams(org_name):
 
 def list_team_members(org_name, team_slug):
     """List all members of a GitHub team."""
+    # Try to get from cache first if db is provided
+    if db is not None:
+        from mongo import get_cached_team_members
+        cached_members = get_cached_team_members(db, org_name, team_slug)
+        if cached_members:
+            return cached_members
+    
     client = get_github_client()
     if not client:
         logger.error("Failed to get GitHub client. Check if GITHUB_TOKEN is set properly.")
@@ -149,54 +156,8 @@ def list_team_members(org_name, team_slug):
             })
         logger.info(f"Found {len(members)} members in team {org_name}/{team_slug}")
         
+        
         return members
     except GithubException as e:
         logger.error(f"Failed to list team members: {e}")
         return []
-
-def is_team_member(username, org_name, team_slug):
-    """
-    Check if a user is a member of a GitHub team.
-    
-    Args:
-        username: GitHub username
-        org_name: GitHub organization name
-        team_slug: GitHub team slug
-        
-    Returns:
-        bool: True if the user is a member, False otherwise
-    """
-    client = get_github_client()
-    if not client:
-        # Without a token, we can't verify, so default to denying
-        return False
-    
-    try:
-        org = client.get_organization(org_name)
-        # Find the team by slug
-        target_team = None
-        for team in org.get_teams():
-            if team.slug == team_slug:
-                target_team = team
-                break
-        
-        if not target_team:
-            logger.error(f"Team {team_slug} not found in organization {org_name}")
-            return False
-        
-        # Check if the user is a member of the team
-        user = client.get_user(username)
-        is_member = target_team.has_in_members(user)
-        
-        if not is_member:
-            logger.info(f"User {username} confirmed not in team by GitHub API")
-        else:
-            logger.info(f"User {username} confirmed in team by GitHub API")
-        
-        return is_member
-    except UnknownObjectException:
-        logger.warning(f"User {username} or team {team_slug} not found")
-        return False
-    except GithubException as e:
-        logger.error(f"Failed to check team membership: {e}")
-        return False
