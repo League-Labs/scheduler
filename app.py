@@ -11,7 +11,7 @@ from urllib.parse import urlparse, urlunparse, parse_qs, urlencode
 import logging
 from pymongo import MongoClient
 from mongo import MongoStorage
-from github import parse_team_url, is_team_member
+from gh import parse_team_url, is_team_member
 
 def init_app():
     # Load environment variables from .env

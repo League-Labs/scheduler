@@ -179,8 +179,7 @@ and test it before going on to the next step.
 - Create the GET and POST  routes for `/<team>/selections`
 - Test loging in as test1, then POST selections and GET them again. 
 - Create the routes for /<team>/info to get info about the team
-- Test POSTing selections for the test1, test2 and test3 users and verify that
-  /<team>/info works
+- Test POSTing selections for the test1, test2 and test3 users and verify that /<team>/info works
 
 ### Sprint3: Github Login
 
@@ -210,7 +209,8 @@ Setup static files for style.css, the application .js file, and images.
 
 - Implement MongoDB for data storage. 
 - Auto create collections and indexes if they do not exist. 
-- create a justfile to run management commands: run the development server and recreate the database. 
+- create a justfile to run management commands: run the development server and
+  recreate the database. 
 
 ### Sprint7: Dockerize
 
@@ -238,3 +238,6 @@ given team
 - Update the app so that if GITHUB_TEAM is specified, only users that are a
 member of the team can login. 
 
+Getting the list of teams and team members from Github is slow so the app should
+cache the member list in Mongo. Create the record with a TTL ( Set in
+GITHUB_TEAM_TTL )
