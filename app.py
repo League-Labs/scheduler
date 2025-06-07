@@ -1,5 +1,6 @@
 from flask import Flask, session, redirect, url_for, request, jsonify, render_template
 from flask.sessions import SecureCookieSessionInterface
+from flask_session import Session
 import json
 from collections import defaultdict
 import os
@@ -9,6 +10,7 @@ from functools import wraps
 from urllib.parse import urlparse, urlunparse, parse_qs, urlencode
 import logging
 from pymongo import MongoClient
+from mongo import MongoStorage
 
 def init_app():
     # Load environment variables from .env
@@ -53,6 +55,10 @@ def init_app():
     app.login_user = login_user
 
     def logout_user():
+        if 'user' in session:
+            session.pop('user')
+        if 'current_team' in session:
+            session.pop('current_team')
         session.clear()
     app.logout_user = logout_user
 
@@ -64,25 +70,34 @@ def init_app():
     GITHUB_CLIENT_ID = os.environ.get('GITHUB_OAUTH_CLIENT_ID')
     GITHUB_CLIENT_SECRET = os.environ.get('GITHUB_OAUTH_CLIENT_SECRET')
     
-    # Configure session cookie for HTTPS
-    app.config['SESSION_COOKIE_SECURE'] = True
-    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+    # Connect to MongoDB
+    client = MongoClient(os.environ.get('MONGO_URI'))
+    default_db = client.get_default_database()
+    db = default_db if default_db is not None else client['scheduler']
+    app.db = db
+
+    # Configure MongoDB for session storage
+    app.config['SESSION_TYPE'] = 'mongodb'
+    app.config['SESSION_MONGODB'] = client
+    app.config['SESSION_MONGODB_DB'] = db.name
+    app.config['SESSION_MONGODB_COLLECT'] = 'sessions'
+    app.config['SESSION_PERMANENT'] = True
+    app.config['PERMANENT_SESSION_LIFETIME'] = 3600  # 1 hour session lifetime
+    app.config['SESSION_USE_SIGNER'] = True
     
-    # Configure Flask-Dance to use HTTPS for OAuth callback
+    # Initialize Flask-Session
+    Session(app)
+    
+    # Configure Flask-Dance to use HTTPS for OAuth callback with custom MongoDB storage
     github_bp = make_github_blueprint(
         client_id=GITHUB_CLIENT_ID,
         client_secret=GITHUB_CLIENT_SECRET,
         redirect_to='github_authorized',
         redirect_url=None,  # Let Flask-Dance build the URL based on app config
         scope='user:email',
+        storage=MongoStorage()
     )
     app.register_blueprint(github_bp, url_prefix="/login")
-
-
-    client = MongoClient( os.environ.get('MONGO_URI'))
-    default_db = client.get_default_database()
-    db = default_db if default_db is not None else client['scheduler']
-    app.db = db
 
     init_db(db)
 
@@ -157,11 +172,14 @@ def login_required_api(f):
         if not user:
             return jsonify({'error': 'Authentication required'}), 401
         return f(*args, **kwargs)
-    return decorated_function
-
-# --- Login route override to use Github login ---
+    return decorated_function    # --- Login route override to use Github login ---
 @app.route('/login')
 def login():
+    # Check if already logged in
+    user = app.get_current_user()
+    if user:
+        return redirect(url_for('index'))
+    
     if github.authorized:
         user_resp = github.get('/user')
         if user_resp.ok:
@@ -174,13 +192,36 @@ def login():
 @app.route('/login/github/authorized')
 def github_authorized():
     if not github.authorized:
-        return redirect(url_for('login'))
-    user_resp = github.get('/user')
-    if not user_resp.ok:
-        return 'Failed to fetch user info from Github', 400
-    app.login_user(user_resp.json().get('login'))
-    next_url = session.pop('next', url_for('index'))
-    return redirect(next_url)
+        logger.error("GitHub OAuth not authorized in callback")
+        return redirect(url_for('github.login'))
+    
+    try:
+        user_resp = github.get('/user')
+        if not user_resp.ok:
+            logger.error(f"Failed to fetch user from GitHub: {user_resp.text}")
+            return 'Failed to fetch user info from Github', 400
+        
+        github_username = user_resp.json().get('login')
+        if not github_username:
+            logger.error("No username found in GitHub response")
+            return 'No username found in GitHub response', 400
+            
+        logger.info(f"Successful GitHub login for user: {github_username}")
+        app.login_user(github_username)
+        
+        # Store GitHub user in the database
+        db = app.db
+        db.users.update_one(
+            {'username': github_username}, 
+            {'$set': {'username': github_username, 'github_data': user_resp.json()}},
+            upsert=True
+        )
+        
+        next_url = session.pop('next', url_for('index'))
+        return redirect(next_url)
+    except Exception as e:
+        logger.exception("Error in GitHub authorization callback")
+        return f"Error during GitHub login: {str(e)}", 500
 
 # --- Hello route ---
 @app.route('/hello')
@@ -272,7 +313,13 @@ def logout():
     # Clear any other session data that might remain
     session.clear()
     
-    return redirect(url_for('index'))
+    # Create a response that will delete the session cookie
+    response = redirect(url_for('index'))
+    
+    # Delete the session cookie by setting its expiration to immediately
+    response.set_cookie('session', '', expires=0)
+    
+    return response
 
 
 # In your Flask app, ensure the database is initialized on startup if not present

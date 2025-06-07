@@ -2,72 +2,6 @@
 {% block title %}Team: {{ team }}{% endblock %}
 {% block head %}
     <script src="{{ url_for('static', filename='app.js') }}" defer></script>
-    <style>
-        .schedule-grid {
-            display: grid;
-            grid-template-columns: 60px repeat(7, 1fr);
-            grid-template-rows: 45px repeat(14, 1fr);
-            gap: 2px;
-            background: #dee2e6;
-            border-radius: 8px;
-            overflow: hidden;
-        }
-        .instructions .card {
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }
-        .instructions .list-group-item {
-            border-left: none;
-            border-right: none;
-            padding: 0.75rem 1.25rem;
-        }
-        .instructions .list-group-item:first-child {
-            border-top: none;
-        }
-        .schedule-header, .schedule-hour, .schedule-cell {
-            background: #fff;
-            text-align: center;
-            padding: 0.5em 0;
-            font-size: 0.95em;
-        }
-        .schedule-header {
-            background: #343a40;
-            color: #fff;
-            font-weight: bold;
-            padding-bottom: 5px;
-            margin-bottom: 5px;
-        }
-        .schedule-hour {
-            background: #f1f3f4;
-            font-weight: bold;
-        }
-        .schedule-cell.selected {
-            position: relative;
-            background: #212529;
-            color: #fff;
-        }
-        .schedule-cell.selected::after {
-            content: '';
-            display: block;
-            width: 16px;
-            height: 16px;
-            background: #000;
-            border-radius: 50%;
-            position: absolute;
-            left: 50%;
-            top: 50%;
-            transform: translate(-50%, -50%);
-        }
-        .schedule-cell {
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-        .schedule-cell.bg-100 { background: #198754 !important; color: #fff; }
-        .schedule-cell.bg-1st { background: #51cf66 !important; color: #222; }
-        .schedule-cell.bg-2nd { background: #ffe066 !important; color: #222; }
-        .schedule-cell.bg-3rd { background: #ffc078 !important; color: #222; }
-        .schedule-cell.bg-red { background: #ff6b6b !important; color: #fff; }
-        .star { color: gold; }
-    </style>
 {% endblock %}
 {% block content %}
     <h2>Team: {{ team }}</h2>
@@ -94,31 +28,31 @@
                             <h5 class="card-title mb-3">Legend</h5>
                             <ul class="list-group list-group-flush">
                                 <li class="list-group-item d-flex align-items-center">
-                                    <span class="schedule-cell bg-100 me-2" style="display:inline-block;width:24px;height:24px;"><span class="star">★</span></span>
+                                    <span class="schedule-cell bg-100 me-2 legend-swatch"><span class="star">★</span></span>
                                     <span><b>Dark green + star:</b> 100% of users selected</span>
                                 </li>
                                 <li class="list-group-item d-flex align-items-center">
-                                    <span class="schedule-cell bg-1st me-2" style="display:inline-block;width:24px;height:24px;"></span>
+                                    <span class="schedule-cell bg-1st me-2 legend-swatch"></span>
                                     <span><b>Light green:</b> 2nd most common selection</span>
                                 </li>
                                 <li class="list-group-item d-flex align-items-center">
-                                    <span class="schedule-cell bg-2nd me-2" style="display:inline-block;width:24px;height:24px;"></span>
+                                    <span class="schedule-cell bg-2nd me-2 legend-swatch"></span>
                                     <span><b>Yellow:</b> 3rd most common selection</span>
                                 </li>
                                 <li class="list-group-item d-flex align-items-center">
-                                    <span class="schedule-cell bg-red me-2" style="display:inline-block;width:24px;height:24px;"></span>
+                                    <span class="schedule-cell bg-red me-2 legend-swatch"></span>
                                     <span><b>Red:</b> Less than 70% selected</span>
                                 </li>
                                 <li class="list-group-item d-flex align-items-center">
-                                    <span class="schedule-cell bg-white me-2" style="display:inline-block;width:24px;height:24px;border:1px solid #ccc;"></span>
+                                    <span class="schedule-cell bg-white me-2 legend-swatch" style="border:1px solid #ccc;"></span>
                                     <span><b>White:</b> No selections</span>
                                 </li>
                                 <li class="list-group-item d-flex align-items-center">
-                                    <span class="star me-2" style="color:gold;font-size:1.2em;">★</span>
+                                    <span class="star me-2 legend-swatch">★</span>
                                     <span><b>Star:</b> All users selected this slot</span>
                                 </li>
                                 <li class="list-group-item d-flex align-items-center">
-                                    <span class="me-2" style="font-size:1.2em;width:24px;height:24px;text-align:center;display:inline-block;">#</span>
+                                    <span class="me-2 legend-swatch text-center">#</span>
                                     <span><b>Number:</b> Number of users who selected this slot</span>
                                 </li>
                             </ul>

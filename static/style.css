@@ -67,7 +67,8 @@ li {
 }
 .schedule-cell.selected {
     outline: 2px solid #999;
-  
+    position: relative;
+    color: #fff;
 }
 .schedule-row {
     display: grid;
@@ -105,7 +106,7 @@ li {
     color: #fff;
 }
 .bg-2nd {
-    background: #b6e388 !important;
+    background: #e0e388 !important;
     color: #222;
 }
 .bg-3rd {
@@ -150,4 +151,75 @@ li {
     padding: 0 4px;
     z-index: 3;
     pointer-events: none;
+}
+
+/* Team page styling */
+.schedule-grid {
+    display: grid;
+    grid-template-columns: 60px repeat(7, 1fr);
+    grid-template-rows: 45px repeat(14, 1fr);
+    gap: 2px;
+    background: #dee2e6;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.instructions .card {
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.instructions .list-group-item {
+    border-left: none;
+    border-right: none;
+    padding: 0.75rem 1.25rem;
+}
+
+.instructions .list-group-item:first-child {
+    border-top: none;
+}
+
+.schedule-header, .schedule-hour, .schedule-cell {
+    background: #fff;
+    text-align: center;
+    padding: 0.5em 0;
+    font-size: 0.95em;
+}
+
+/* Override existing schedule-header for team page */
+.schedule-grid .schedule-header {
+    background: #343a40;
+    color: #fff;
+    font-weight: bold;
+    padding-bottom: 5px;
+    margin-bottom: 5px;
+}
+
+.schedule-grid .schedule-hour {
+    background: #f1f3f4;
+    font-weight: bold;
+}
+
+.schedule-cell.selected::after {
+    content: '';
+    display: block;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.star {
+    color: gold;
+    font-size: 1.2em;
+}
+
+.legend-swatch {
+    display: inline-block;
+    width: 24px;
+    height: 24px;
+    text-align: center;
+    font-size: 1.2em;
 }
