@@ -4,7 +4,21 @@ services:
     build: .
     command: gunicorn -b 0.0.0.0:8000 app:app
 
-    ports:
-      - "8000:8000"
+
+    # These labels set up the domain name in the Caddy proxy
+    labels:
+      caddy: schedule.jtlapp.net
+      caddy.reverse_proxy: "{{upstreams 8000}}"
+
+    #ports:
+    #  - "8000:8000"
+
     env_file:
       - .env
+    
+    networks: # Must exist to receive traffic from Caddy
+      - caddy
+
+networks:
+  caddy:
+    external: true
