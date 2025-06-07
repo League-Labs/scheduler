@@ -6,3 +6,6 @@ Flask-Cors
 flask-dance
 jupyter
 ipykernel
+pymongo
+python-dotenv
+gunicorn

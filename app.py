@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 from functools import wraps
 from urllib.parse import urlparse, urlunparse, parse_qs, urlencode
 import logging
-import sqlite3
+from pymongo import MongoClient
 
 def init_app():
     # Load environment variables from .env
@@ -52,7 +52,30 @@ def init_app():
     )
     app.register_blueprint(github_bp, url_prefix="/login")
 
+
+    client = MongoClient( os.environ.get('MONGO_URI'))
+    default_db = client.get_default_database()
+    db = default_db if default_db is not None else client['scheduler']
+    app.db = db
+
+    init_db(db)
+
     return app
+
+
+
+def init_db(db):
+    # Create collections only if they do not exist
+    if 'users' not in db.list_collection_names():
+        db.create_collection('users', capped=False)
+    if 'userteam' not in db.list_collection_names():
+        db.create_collection('userteam', capped=False)
+    # Ensure indexes exist
+    db.users.create_index('username', unique=True)
+    db.userteam.create_index([('user_id', 1), ('team', 1)], unique=True)
+    # Add test users if not present
+    for username in ['test1', 'test2', 'test3']:
+        db.users.update_one({'username': username}, {'$setOnInsert': {'username': username}}, upsert=True)
 
 app = init_app()
 
@@ -142,26 +165,33 @@ def index():
 @login_required_api
 def team_selections(team):
     user = app.get_current_user()
+    db = app.db
     if request.method == 'GET':
-        selections = app.userteam_selections[team].get(user, [])
+        doc = db.userteam.find_one({'user_id': user, 'team': team})
+        selections = doc['selections'] if doc and 'selections' in doc else []
         return jsonify(selections)
     # POST: Save selections
     data = request.get_json(force=True)
     if not isinstance(data, list):
         return jsonify({'error': 'Selections must be a list'}), 400
-    app.userteam_selections[team][user] = data
+    db.userteam.update_one(
+        {'user_id': user, 'team': team},
+        {'$set': {'selections': data}},
+        upsert=True
+    )
     return jsonify({'status': 'ok'})
 
 # --- GET /<team>/info ---
 @app.route('/<team>/info', methods=['GET'])
 @login_required
 def team_info(team):
-    team_data = app.userteam_selections[team]
-    users = list(team_data.keys())
+    db = app.db
+    team_docs = list(db.userteam.find({'team': team}))
+    users = [doc['user_id'] for doc in team_docs]
     count = len(users)
     dayhours = defaultdict(int)
-    for sel in team_data.values():
-        for dh in sel:
+    for doc in team_docs:
+        for dh in doc.get('selections', []):
             dayhours[dh] += 1
     return jsonify({
         'name': team,
@@ -188,16 +218,9 @@ def logout():
     app.logout_user()
     return redirect(url_for('index'))
 
-DATABASE_PATH = os.environ.get('DATABASE_PATH', '/data/scheduler.sqlite3')
 
-def get_db():
-    if not os.path.exists(os.path.dirname(DATABASE_PATH)):
-        os.makedirs(os.path.dirname(DATABASE_PATH))
-    conn = sqlite3.connect(DATABASE_PATH)
-    return conn
 
 # In your Flask app, ensure the database is initialized on startup if not present
 if __name__ == '__main__':
-    from init_db import get_db
-    get_db()
+
     app.run(host='0.0.0.0', port=5000, debug=True)

@@ -1,13 +1,10 @@
 version: '3.8'
 services:
-  scheduler:
+  web:
     build: .
+    command: gunicorn -b 0.0.0.0:8000 app:app
+
     ports:
-      - "5000:5000"
-    volumes:
-      - ./data:/data
-      - .:/app
-    environment:
-      - FLASK_APP=app.py
-      - FLASK_ENV=development
-    command: flask run --host=0.0.0.0
+      - "8000:8000"
+    env_file:
+      - .env

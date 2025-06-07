@@ -1,13 +1,14 @@
+# syntax=docker/dockerfile:1
 FROM python:3.12-slim
 
 WORKDIR /app
 
 COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt \
+    && pip install --no-cache-dir gunicorn
 
 COPY . .
 
-ENV FLASK_APP=app.py
-ENV FLASK_ENV=development
+ENV PYTHONUNBUFFERED=1
 
-CMD ["flask", "run", "--host=0.0.0.0"]
+CMD ["gunicorn", "-b", "0.0.0.0:8000", "app:app"]

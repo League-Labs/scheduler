@@ -1,20 +1,19 @@
-
 # League Labs Scheduler
 
-This web application helps a teacher scehdule meeting with students in a class.
+This web application helps a teacher schedule meetings with students in a class.
 The students can log into the application with Github and will see a
 representation of a week, with one box per hour, per day, for a single week. The
 students will click on all of the boxes for an hour where the students can meet
-with the class. The application will store these records in a database and
-compile all of the records to help the teacher pick a good time for a meeting. 
+with the class. The application will store these records in a MongoDB database
+and compile all of the records to help the teacher pick a good time for a meeting. 
 
 ## Application Structure
 
 The application is a Python Flask backend with a single page app Javascript
-front end. The database is sqlite. The application is deployed with Docker
-compose. 
+front end. The database is MongoDB (connection string in the MONGO_URI env var).
+The application is deployed with Docker compose. 
 
-Sessions are stored in the file system not in the Sqlite database
+Sessions are stored in the file system, not in MongoDB.
 
 Pages are implemented in Jinja2. The Single Page Application is Javascript that
 is stored in its own .js file and is included directly into the SPA page via
@@ -93,6 +92,8 @@ cell, if there are more than 0 selections for the cell.
 
 ## Database & protocol
 
+The application uses MongoDB for data storage. The connection string is provided
+in the environment variable MONGO_URI.
 
 In the database, days are recorded in common 1 letter abbreviations: 
 
@@ -111,16 +112,16 @@ A Dayhour is recorded by concatenating the two, so:
 W08: Wednesday at 8AM
 U14: Sunday at 2PM. 
 
-The database has tables for:
+The MongoDB database has collections for:
 
 * users
 * userteam
 
-The userteam table records a user's selections for a team. It has columns for:
+The userteam collection records a user's selections for a team. Each document has fields for:
 
-* user_id
+* user_id (name of the user, as it appears in  session['user'])
 * team: string name of the team 
-* selections: JSON list of all of the dayhours that the user selected. 
+* selections: List of all of the dayhours that the user selected. 
 
 ## Server
 
@@ -197,14 +198,21 @@ Setup static files for style.css, the application .js file, and images.
 
 - Full implemementataion of the user interface. 
 
-### Sprint6: Database and Dockerize
+### Sprint6: Database 
 
-- Implement sqlite for data storage. 
-- Auto create database if it does not exist. 
-- Create a Docker file and docker compose configuration. 
-- create a docker ignore to ignore files that should be ignored
-
+- Implement MongoDB for data storage. 
+- Auto create collections and indexes if they do not exist. 
 - create a justfile to run management commands: run the development server and recreate the database. 
 
-For the docker composed configuration, define a mounted data directory to hold
-the sqlite database. 
+### Sprint7: Dockerize
+
+Setup a docker deployment. 
+
+- run the production server using gunicorn to run the Flask app
+- copy the whole repo into the /app directory in the Dockerfile
+- create a Justfile entry to build the docker container
+- Create a Justfile entry to run the docker composition. 
+
+For the docker composed configuration, the MongoDB connection string is provided
+via the MONGO_URI environment variable, in the .env file. This file and
+variablel should be referenced in the Docker configuration

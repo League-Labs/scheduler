@@ -1,35 +1,24 @@
-DATABASE_PATH = '/data/scheduler.sqlite3'
-
 import os
-import sqlite3
+from pymongo import MongoClient
+from dotenv import load_dotenv
 
-def get_db():
-    if not os.path.exists('/data'):
-        os.makedirs('/data')
-    db_exists = os.path.exists(DATABASE_PATH)
-    conn = sqlite3.connect(DATABASE_PATH)
-    if not db_exists:
-        create_db(conn)
-    return conn
+load_dotenv()
+MONGO_URI = os.environ.get('MONGO_URI')
 
-def create_db(conn):
-    c = conn.cursor()
-    c.execute('''CREATE TABLE users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT UNIQUE NOT NULL
-    )''')
-    c.execute('''CREATE TABLE userteam (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL,
-        team TEXT NOT NULL,
-        selections TEXT NOT NULL,
-        UNIQUE(user_id, team)
-    )''')
-    # Add test users
+client = MongoClient(MONGO_URI)
+default_db = client.get_default_database()
+db = default_db if default_db is not None else client['scheduler']
+
+# Ensure collections and indexes exist
+def init_db():
+    db.create_collection('users', capped=False)
+    db.create_collection('userteam', capped=False)
+    db.users.create_index('username', unique=True)
+    db.userteam.create_index([('user_id', 1), ('team', 1)], unique=True)
+    # Add test users if not present
     for username in ['test1', 'test2', 'test3']:
-        c.execute('INSERT INTO users (username) VALUES (?)', (username,))
-    conn.commit()
+        db.users.update_one({'username': username}, {'$setOnInsert': {'username': username}}, upsert=True)
 
 if __name__ == '__main__':
-    get_db()
-    print('Database initialized at', DATABASE_PATH)
+    init_db()
+    print('MongoDB initialized at', MONGO_URI)

@@ -12,6 +12,17 @@
             border-radius: 8px;
             overflow: hidden;
         }
+        .instructions .card {
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .instructions .list-group-item {
+            border-left: none;
+            border-right: none;
+            padding: 0.75rem 1.25rem;
+        }
+        .instructions .list-group-item:first-child {
+            border-top: none;
+        }
         .schedule-header, .schedule-hour, .schedule-cell {
             background: #fff;
             text-align: center;
@@ -51,9 +62,11 @@
             transition: background 0.2s;
         }
         .schedule-cell.bg-100 { background: #198754 !important; color: #fff; }
-        .schedule-cell.bg-90 { background: #51cf66 !important; color: #222; }
-        .schedule-cell.bg-70 { background: #ffe066 !important; color: #222; }
-        .schedule-cell.bg-0 { background: #ff6b6b !important; color: #fff; }
+        .schedule-cell.bg-1st { background: #51cf66 !important; color: #222; }
+        .schedule-cell.bg-2nd { background: #ffe066 !important; color: #222; }
+        .schedule-cell.bg-3rd { background: #ffc078 !important; color: #222; }
+        .schedule-cell.bg-red { background: #ff6b6b !important; color: #fff; }
+        .star { color: gold; }
     </style>
 {% endblock %}
 {% block content %}
@@ -64,14 +77,55 @@
             <button class="btn btn-primary" id="save-btn">Save Selections</button>
             <span id="save-status" class="ms-3"></span>
         </div>
-        <div class="instructions mt-4" style="max-width: 600px;">
-            <h5>Instructions</h5>
-            <ul>
-                <li><b>Click a cell</b> to select or deselect that hour for that day.</li>
-                <li><b>Click a row heading</b> (hour) to toggle all cells in that row on or off.</li>
-                <li><b>Click a column heading</b> (day) to toggle all cells in that column on or off.</li>
-                <li><b>Click the <code>copy →</code> button</b> below a day to copy all selections in that column to the column to the right.</li>
-            </ul>
+        <div class="instructions mt-4" style="max-width: 900px;">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 border-end">
+                            <h5 class="card-title mb-3">Instructions</h5>
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item"><b>Click a cell</b> to select or deselect that hour for that day.</li>
+                                <li class="list-group-item"><b>Click a row heading</b> (hour) to toggle all cells in that row on or off.</li>
+                                <li class="list-group-item"><b>Click a column heading</b> (day) to toggle all cells in that column on or off.</li>
+                                <li class="list-group-item"><b>Click the <code>copy →</code> button</b> below a day to copy all selections in that column to the column to the right.</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h5 class="card-title mb-3">Legend</h5>
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item d-flex align-items-center">
+                                    <span class="schedule-cell bg-100 me-2" style="display:inline-block;width:24px;height:24px;"><span class="star">★</span></span>
+                                    <span><b>Dark green + star:</b> 100% of users selected</span>
+                                </li>
+                                <li class="list-group-item d-flex align-items-center">
+                                    <span class="schedule-cell bg-1st me-2" style="display:inline-block;width:24px;height:24px;"></span>
+                                    <span><b>Light green:</b> 2nd most common selection</span>
+                                </li>
+                                <li class="list-group-item d-flex align-items-center">
+                                    <span class="schedule-cell bg-2nd me-2" style="display:inline-block;width:24px;height:24px;"></span>
+                                    <span><b>Yellow:</b> 3rd most common selection</span>
+                                </li>
+                                <li class="list-group-item d-flex align-items-center">
+                                    <span class="schedule-cell bg-red me-2" style="display:inline-block;width:24px;height:24px;"></span>
+                                    <span><b>Red:</b> Less than 70% selected</span>
+                                </li>
+                                <li class="list-group-item d-flex align-items-center">
+                                    <span class="schedule-cell bg-white me-2" style="display:inline-block;width:24px;height:24px;border:1px solid #ccc;"></span>
+                                    <span><b>White:</b> No selections</span>
+                                </li>
+                                <li class="list-group-item d-flex align-items-center">
+                                    <span class="star me-2" style="color:gold;font-size:1.2em;">★</span>
+                                    <span><b>Star:</b> All users selected this slot</span>
+                                </li>
+                                <li class="list-group-item d-flex align-items-center">
+                                    <span class="me-2" style="font-size:1.2em;width:24px;height:24px;text-align:center;display:inline-block;">#</span>
+                                    <span><b>Number:</b> Number of users who selected this slot</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 {% endblock %}
