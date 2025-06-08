@@ -58,7 +58,7 @@ def init_app():
 
     # --- Session helper ---
     def login_user(username):
-        session.clear()
+       
         session['user'] = username
     app.login_user = login_user
 
@@ -269,6 +269,7 @@ def fix_scheme():
         os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
 
+
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -357,6 +358,27 @@ def github_authorized():
         logger.exception("Error in GitHub authorization callback")
         return f"Error during GitHub login: {str(e)}", 500
 
+# --- Logout route ---
+@app.route('/logout')
+def logout():
+    # Clear the Flask-Dance OAuth token
+    if hasattr(github, 'token'):
+        del github.token
+    
+    # Clear the user session
+    app.logout_user()
+    
+    # Clear any other session data that might remain
+    session.clear()
+    
+    # Create a response that will delete the session cookie
+    response = redirect(url_for('index'))
+    
+    # Delete the session cookie by setting its expiration to immediately
+    response.set_cookie('session', '', expires=0)
+    
+    return response
+
 # --- Hello route ---
 @app.route('/hello')
 @login_required
@@ -434,26 +456,7 @@ def team_page(team):
    
 
 
-# --- Logout route ---
-@app.route('/logout')
-def logout():
-    # Clear the Flask-Dance OAuth token
-    if hasattr(github, 'token'):
-        del github.token
-    
-    # Clear the user session
-    app.logout_user()
-    
-    # Clear any other session data that might remain
-    session.clear()
-    
-    # Create a response that will delete the session cookie
-    response = redirect(url_for('index'))
-    
-    # Delete the session cookie by setting its expiration to immediately
-    response.set_cookie('session', '', expires=0)
-    
-    return response
+
 
 
 # In your Flask app, ensure the database is initialized on startup if not present

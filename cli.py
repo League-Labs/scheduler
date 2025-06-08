@@ -8,11 +8,14 @@ Usage:
     python cli.py cache -s                           Show cache status
     python cli.py cache -i                           Invalidate cache
     python cli.py cache -r                           Refresh cache
+    python cli.py team <team_name> -d                Delete all selection records for a team
+    python cli.py team <team_name> -u                List all users who contributed to a team calendar
 """
 import os
 import sys
 import logging
 import click
+from urllib.parse import urlparse
 from dotenv import load_dotenv
 from gh_api import parse_team_url, list_teams, list_team_members
 from mongo import get_cache_status, invalidate_team_cache, cache_team_members
@@ -181,6 +184,67 @@ def cache(status, invalidate, refresh, org, team):
             click.echo(f"Successfully cached {len(members)} members for team {org}/{team}")
         else:
             click.echo(f"Failed to cache members for team {org}/{team}")
+
+@cli.command()
+@click.argument('team_name')
+@click.option('-d', '--delete', is_flag=True, help='Delete all selection records for the team')
+@click.option('-u', '--users', is_flag=True, help='List all users who have contributed to the team calendar')
+def team(team_name, delete, users):
+    """Manage team-related operations for dayhour selection teams.
+    
+    This command allows you to:
+    - Delete all selection records for a team with the -d/--delete flag
+    - List all users who have contributed to a team calendar with the -u/--users flag
+    """
+    # Import here to avoid circular imports
+    load_dotenv()
+    from pymongo import MongoClient
+    from urllib.parse import urlparse
+    
+    # Connect to MongoDB
+    mongo_uri = os.environ.get('MONGO_URI')
+    if not mongo_uri:
+        click.echo("Error: MONGO_URI environment variable not set")
+        sys.exit(1)
+    
+    try:
+        client = MongoClient(mongo_uri)
+        db_name = urlparse(mongo_uri).path.strip('/') or 'scheduler'
+        db = client[db_name]
+    except Exception as e:
+        click.echo(f"Error connecting to MongoDB: {e}")
+        sys.exit(1)
+
+    # Ensure at least one flag is provided
+    if not (delete or users):
+        click.echo("Error: Please specify an operation with -d/--delete or -u/--users")
+        click.echo(click.get_current_context().get_help())
+        sys.exit(1)
+        
+    # Delete all selection records for the team
+    if delete:
+        try:
+            result = db.userteam.delete_many({"team": team_name})
+            click.echo(f"Deleted {result.deleted_count} selection records for team '{team_name}'")
+        except Exception as e:
+            click.echo(f"Error deleting team records: {e}")
+            sys.exit(1)
+    
+    # List all users who have contributed to the team calendar
+    if users:
+        try:
+            users_list = db.userteam.distinct("user_id", {"team": team_name})
+            
+            if not users_list:
+                click.echo(f"No users have contributed to team '{team_name}'")
+            else:
+                click.echo(f"Users who have contributed to team '{team_name}':")
+                for user in sorted(users_list):
+                    click.echo(f"  - {user}")
+                click.echo(f"Total: {len(users_list)} users")
+        except Exception as e:
+            click.echo(f"Error listing team users: {e}")
+            sys.exit(1)
 
 if __name__ == '__main__':
     # Configure logging
