@@ -30,6 +30,11 @@ For deployment, the configuration can specify a team ( secified by the full team
 URL ) in the env var GITHUB_TEAM. If specified, only members of that team will
 be allowed to log in
 
+On the team page, A user logged in with Github can set a password ( See UI section 
+for details ). If the user's URL references a team page and the 'pw' query
+arg in the URL matches the password, then the user is logged in, but only
+for that team page. 
+
 
 ## User Interface
 
@@ -94,6 +99,26 @@ and the cells with a zero value are white.
 The dayhour cell with also display a small number in the lower-right, with a
 size that is 1/2 of the dayhour cell, with displays the count of votes for that
 cell, if there are more than 0 selections for the cell. 
+
+### Setting a password
+
+Below the dayhour gird, on the right side is a password form field. Only the
+user who create the team ( first referenced the team ) can create or change the
+password.  Once it is set, it can only be changed to cleared by the user who set
+it. When it is set, then below it will be shown the URL to the team page with a
+'?pw=<password>' appended to the URL. 
+
+There is also a checkbox labeled 'require for all users'. If checked, then users
+who are logged in with Github will also have to use the password, except for the
+user who created the password
+
+If a password is required for a page, and the user does not have A URL with the
+password, the user is redirected to the index, with a flash message indicating
+that acess is not allowed. 
+
+### The Index page
+
+The Index page shows a list of all of the teams
 
 ## Database & protocol
 
@@ -285,3 +310,10 @@ records for the team ( remember this is the dayhour selections team, not the
 github team ), and therefore the whole team record
 - Add a command `team <team_name> -u' to list all of the users who have
 contributed to the team calendar
+
+## Sprint 12:  Enhanced Login with Password
+
+- Implement the password box as described in `### Setting a password` and `##login`
+- When a user references a team, create a record for the team in the Mongo
+database. Record the user who first referenced the team. This will also be the
+user who is allowed to set a password 
