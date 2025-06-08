@@ -15,7 +15,7 @@ from flask_session import Session
 from pymongo import MongoClient
 
 from gh_api import list_team_members, parse_team_url
-from mongo import MongoStorage
+from mongo import MongoStorage, get_or_new_team
 from recache import RecacheWorker
 
 logger = logging.getLogger(__name__)
@@ -288,6 +288,7 @@ def login_required_api(f):
             return jsonify({'error': 'Authentication required'}), 401
         return f(*args, **kwargs)
     return decorated_function    # --- Login route override to use Github login ---
+
 @app.route('/login')
 def login():
     # Check if already logged in
@@ -444,20 +445,88 @@ def team_info(team):
         'dayhours': dict(dayhours)
     })
 
-# --- Team page stub ---
-@app.route('/<team>/', strict_slashes=False)
-@login_required
-def team_page(team):
-    # Store the current team in the session
-    session['current_team'] = team
 
+
+
+# --- Team page stub ---
+@app.route('/<team_name>/', strict_slashes=False)
+@login_required
+def team_page(team_name):
+    # Store the current team in the session
+
+    if team_name == 'favicon.ico':
+        return '', 204
+
+    session['current_team'] = team_name
     user = app.get_current_user()
+
+    team = get_or_new_team(app.db, user, team_name)
+    
+    if team['password']:
+        team['url'] = request.url + "?pw=" + team['password']
+
     return render_template('team.html', team=team, user=user)
    
+# --- GET and POST /<team>/selections ---
+@app.route('/<team_name>/set_passwords', methods=[ 'POST'])
+@login_required_api
+def set_team_password(team_name):
+
+    user = app.get_current_user()
+    team = get_or_new_team(app.db, user, team_name)
+    
+    # Only the team creator can set/change passwords
+    if team.get('creator_id') != user:
+        flash('Only the team creator can change password settings.', 'error')
+        return redirect(url_for('team_page', team_name=team_name))
+        
+    # Handle form submissions
+    new_password = request.form.get('password')
+    require_for_all = 'require_for_all' in request.form
+    
+    # Update the team in the database
+    app.db.teams.update_one(
+        {'_id': team['_id']},
+        {'$set': {
+            'password': new_password,
+            'require_for_all': require_for_all
+        }}
+    )
+    
+    flash('Password settings updated successfully.', 'success')
+    return redirect(url_for('team_page', team_name=team_name))
 
 
 
 
+# --- GET and POST /<team>/password ---
+@app.route('/<team>/password', methods=['GET', 'POST'])
+def password_access(team):
+    """Handle password access for protected teams"""
+    user = app.get_current_user()
+    team_doc = get_or_new_team(app.db, user, team)
+    
+    # Store destination in session to redirect after successful password entry
+    session['password_redirect'] = url_for('team_page', team_name=team)
+    
+    if request.method == 'POST':
+        password = request.form.get('password')
+        
+        # Check if the password matches
+        if password == team_doc.get('password'):
+            # Store the password access in session
+            if 'password_access' not in session:
+                session['password_access'] = {}
+            
+            session['password_access'][team] = True
+            
+            # Redirect to the original destination
+            redirect_url = session.pop('password_redirect', url_for('team_page', team_name=team))
+            return redirect(redirect_url)
+        else:
+            flash('Incorrect password. Please try again.', 'danger')
+    
+    return render_template('password_access.html', team=team)
 
 # In your Flask app, ensure the database is initialized on startup if not present
 if __name__ == '__main__':

@@ -31,6 +31,37 @@ class MongoStorage(BaseStorage):
         if key in session:
             del session[key]
 
+
+
+
+
+def get_or_new_team(db, user_name, team_name):
+    """
+    Get a team by name or create a new one if it doesn't exist.
+    
+    Args:
+        db: MongoDB database connection
+        team_name: Name of the team to get or create
+        
+    Returns:
+        The team document
+    """
+    team = db.teams.find_one({"team_name": team_name})
+    
+    if team is None:
+        new_team = {
+            "team_name": team_name,
+            "creator_id": user_name,  # Should be set by the caller if available
+            "created_at": datetime.datetime.now(timezone.utc),
+            "password": None,
+            "require_for_all": False
+        }
+        result = db.teams.insert_one(new_team)
+        team = db.teams.find_one({"_id": result.inserted_id})
+        logger.info(f"Created new team: {team_name}")
+    
+    return team
+
 def cache_team_members(db=None, org_name=None, team_slug=None, members=None):
     """
     Cache team members list in MongoDB with TTL
