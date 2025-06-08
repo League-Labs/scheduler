@@ -167,35 +167,77 @@ function copyColumn(colIdx) {
 }
 
 async function fetchSelections() {
-    const resp = await fetch(`/${team}/selections`);
-    if (resp.ok) {
-        const data = await resp.json();
-        selected = new Set(data);
+    try {
+        const resp = await fetch(`/${team}/selections`);
+        if (resp.ok) {
+            const data = await resp.json();
+            selected = new Set(data);
+        } else if (resp.status === 401) {
+            // User needs to log in
+            document.getElementById('save-btn').disabled = true;
+            document.getElementById('save-btn').title = "Please log in to save selections";
+            document.getElementById('save-status').textContent = 'Please log in to save selections';
+            document.getElementById('save-status').className = 'text-warning';
+        } else if (resp.status === 403) {
+            // Password access required
+            document.getElementById('save-btn').disabled = true;
+            document.getElementById('save-btn').title = "Access denied";
+            document.getElementById('save-status').textContent = 'Access denied';
+            document.getElementById('save-status').className = 'text-danger';
+        }
+    } catch (err) {
+        console.error("Error fetching selections:", err);
     }
 }
 
 async function fetchInfo() {
-    const resp = await fetch(`/${team}/info`);
-    if (resp.ok) {
-        info = await resp.json();
+    try {
+        const resp = await fetch(`/${team}/info`);
+        if (resp.ok) {
+            info = await resp.json();
+        } else if (resp.status === 403) {
+            // Password access required
+            document.getElementById('save-status').textContent = 'Access denied';
+            document.getElementById('save-status').className = 'text-danger';
+        }
+    } catch (err) {
+        console.error("Error fetching team info:", err);
     }
 }
 
 async function saveSelections() {
-    const resp = await fetch(`/${team}/selections`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(Array.from(selected))
-    });
-    if (resp.ok) {
-        document.getElementById('save-status').textContent = 'Saved!';
-        await fetchInfo();
-        renderGrid();
-        setTimeout(() => {
-            document.getElementById('save-status').textContent = '';
-        }, 1200);
-    } else {
+    try {
+        const resp = await fetch(`/${team}/selections`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(Array.from(selected))
+        });
+        
+        if (resp.ok) {
+            document.getElementById('save-status').textContent = 'Saved!';
+            document.getElementById('save-status').className = 'text-success';
+            await fetchInfo();
+            renderGrid();
+            setTimeout(() => {
+                document.getElementById('save-status').textContent = '';
+                document.getElementById('save-status').className = '';
+            }, 1200);
+        } else if (resp.status === 401) {
+            // Not authenticated
+            document.getElementById('save-status').textContent = 'Please log in to save selections';
+            document.getElementById('save-status').className = 'text-warning';
+        } else if (resp.status === 403) {
+            // Access denied
+            document.getElementById('save-status').textContent = 'Access denied';
+            document.getElementById('save-status').className = 'text-danger';
+        } else {
+            document.getElementById('save-status').textContent = 'Error saving!';
+            document.getElementById('save-status').className = 'text-danger';
+        }
+    } catch (err) {
+        console.error("Error saving selections:", err);
         document.getElementById('save-status').textContent = 'Error saving!';
+        document.getElementById('save-status').className = 'text-danger';
     }
 }
 

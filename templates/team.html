@@ -6,11 +6,51 @@
 {% block content %}
     <h2>Team: {{ team }}</h2>
     <div id="spa-root">
-        <div class="schedule-grid" id="schedule-grid"></div>
+        <div class="schedule-grid" id="schedule-grid">        </div>
         <div class="mt-3">
             <button class="btn btn-primary" id="save-btn">Save Selections</button>
             <span id="save-status" class="ms-3"></span>
         </div>
+        
+        {% if is_team_creator %}
+        <div class="mt-4 mb-4 card">
+            <div class="card-body">
+                <h5 class="card-title">Team Password Settings</h5>
+                <form id="password-form" method="post" action="{{ url_for('set_team_password', team=team) }}">
+                    <div class="mb-3">
+                        <label for="team-password" class="form-label">Set Team Password</label>
+                        <input type="text" class="form-control" id="team-password" name="password" 
+                               value="{{ team_password if team_password else '' }}" placeholder="Leave empty to remove password">
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="require-all" name="require_for_all" 
+                               {% if require_for_all %}checked{% endif %}>
+                        <label class="form-check-label" for="require-all">Require for all users</label>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Save Password Settings</button>
+                </form>
+                {% if team_password %}
+                <div class="mt-3">
+                    <p>Share this URL with your team members:</p>
+                    <div class="input-group">
+                        <input type="text" class="form-control" readonly value="{{ team_url_with_password }}" id="team-url">
+                        <button class="btn btn-outline-secondary" type="button" onclick="copyTeamUrl()">Copy URL</button>
+                    </div>
+                </div>
+                <script>
+                    function copyTeamUrl() {
+                        var copyText = document.getElementById("team-url");
+                        copyText.select();
+                        copyText.setSelectionRange(0, 99999);
+                        navigator.clipboard.writeText(copyText.value);
+                        alert("URL copied to clipboard!");
+                    }
+                </script>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+        
         <div class="instructions mt-4" style="max-width: 900px;">
             <div class="card">
                 <div class="card-body">

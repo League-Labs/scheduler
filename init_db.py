@@ -19,6 +19,8 @@ def init_db():
         db.create_collection('users', capped=False)
     if 'userteam' not in existing_collections:
         db.create_collection('userteam', capped=False)
+    if 'teams' not in existing_collections:
+        db.create_collection('teams', capped=False)
     
     # Create GitHub team cache collection with TTL index
     if 'github_teams_cache' not in existing_collections:
@@ -31,6 +33,7 @@ def init_db():
     # Create indexes for main collections
     db.users.create_index('username', unique=True)
     db.userteam.create_index([('user_id', 1), ('team', 1)], unique=True)
+    db.teams.create_index('team_name', unique=True)
     
     # Add test users if not present
     for username in ['test1', 'test2', 'test3']:
