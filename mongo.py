@@ -49,6 +49,10 @@ def get_or_new_team(db, user_name, team_name):
     team = db.teams.find_one({"team_name": team_name})
     
     if team is None:
+
+        if user_name is None:
+            return None
+
         new_team = {
             "team_name": team_name,
             "creator_id": user_name,  # Should be set by the caller if available

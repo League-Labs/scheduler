@@ -224,7 +224,8 @@ def team(team_name, delete, users):
     # Delete all selection records for the team
     if delete:
         try:
-            result = db.userteam.delete_many({"team": team_name})
+            result = db.userteam.delete_one({"team": team_name})
+            click.echo(f"Deleted {1 if result.deleted_count else 0} selection record for team '{team_name}'")
             click.echo(f"Deleted {result.deleted_count} selection records for team '{team_name}'")
         except Exception as e:
             click.echo(f"Error deleting team records: {e}")

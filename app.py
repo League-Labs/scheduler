@@ -227,16 +227,6 @@ def get_team_members():
     return members
 
 
-@app.after_request
-def after_request(response):
-    """
-    After request handler to potentially trigger cache refresh.
-    This is a placeholder for Sprint 10 implementation.
-    """
-
-
-
-    return response
 
 
 @app.before_request
@@ -275,8 +265,17 @@ def login_required(f):
     def decorated_function(*args, **kwargs):
         user = app.get_current_user()
         if not user:
+            # Get the team_name from the URL if it exists (from route parameters)
             session['next'] = request.url
-            return redirect(url_for('login'))
+        
+            team_name = kwargs.get('team_name')
+            pw = kwargs.get('team_name')
+
+            if team_name and pw:
+                return redirect(url_for('password_access', team=team_name, pw=pw))
+            else:
+                return redirect(url_for('login' ))
+        
         return f(*args, **kwargs)
     return decorated_function
 
@@ -293,9 +292,11 @@ def login_required_api(f):
 def login():
     # Check if already logged in
     user = app.get_current_user()
+
     if user:
         return redirect(url_for('index'))
     
+
     # Clear any existing OAuth tokens to force new login
     if hasattr(github, 'token'):
         del github.token
@@ -309,6 +310,7 @@ def login():
     
     # Redirect to GitHub OAuth login
     return redirect(url_for('github.login'))
+
 
 # --- After Github OAuth, set session and redirect ---
 @app.route('/login/github/auth') # DO NOT CHANGE THIS ROUTE!
@@ -358,6 +360,38 @@ def github_authorized():
     except Exception as e:
         logger.exception("Error in GitHub authorization callback")
         return f"Error during GitHub login: {str(e)}", 500
+
+# --- GET and POST /<team>/password ---
+@app.route('/<team>/password', methods=['GET', 'POST'])
+def password_access(team):
+    """Handle password access for protected teams"""
+  
+    team_doc = get_or_new_team(app.db, None, team)
+
+
+    # Store destination in session to redirect after successful password entry
+    session['password_redirect'] = url_for('team_page', team_name=team)
+    
+    if request.method == 'POST':
+        email = request.form.get('username')
+
+        if not email or '@' not in email:
+            flash('Please enter a valid email address.', 'error')
+            return redirect(request.url)
+        
+        app.login_user(email)
+      
+        return redirect(url_for('team_page', team_name=team))
+    
+    else:
+        pw = request.args.get('pw')
+
+        if pw != team_doc.get('password'):
+            flash('Password required to access this team.', 'warning')
+            return redirect(url_for('index'))
+        
+        return render_template('password_access.html', team=team, url=request.url)
+
 
 # --- Logout route ---
 @app.route('/logout')
@@ -463,7 +497,13 @@ def team_page(team_name):
     team = get_or_new_team(app.db, user, team_name)
     
     if team['password']:
-        team['url'] = request.url + "?pw=" + team['password']
+
+        # Check if password is set and add it to the URL
+        if team['password']:
+            team['url'] = url_for('team_page', team_name=team_name, pw=team['password'], _external=True)
+        else:
+            team['url'] = None
+       
 
     return render_template('team.html', team=team, user=user)
    
@@ -497,36 +537,6 @@ def set_team_password(team_name):
     return redirect(url_for('team_page', team_name=team_name))
 
 
-
-
-# --- GET and POST /<team>/password ---
-@app.route('/<team>/password', methods=['GET', 'POST'])
-def password_access(team):
-    """Handle password access for protected teams"""
-    user = app.get_current_user()
-    team_doc = get_or_new_team(app.db, user, team)
-    
-    # Store destination in session to redirect after successful password entry
-    session['password_redirect'] = url_for('team_page', team_name=team)
-    
-    if request.method == 'POST':
-        password = request.form.get('password')
-        
-        # Check if the password matches
-        if password == team_doc.get('password'):
-            # Store the password access in session
-            if 'password_access' not in session:
-                session['password_access'] = {}
-            
-            session['password_access'][team] = True
-            
-            # Redirect to the original destination
-            redirect_url = session.pop('password_redirect', url_for('team_page', team_name=team))
-            return redirect(redirect_url)
-        else:
-            flash('Incorrect password. Please try again.', 'danger')
-    
-    return render_template('password_access.html', team=team)
 
 # In your Flask app, ensure the database is initialized on startup if not present
 if __name__ == '__main__':
