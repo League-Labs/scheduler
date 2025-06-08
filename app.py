@@ -269,7 +269,7 @@ def login_required(f):
             session['next'] = request.url
         
             team_name = kwargs.get('team_name')
-            pw = kwargs.get('team_name')
+            pw = kwargs.get('pw')
 
             if team_name and pw:
                 return redirect(url_for('password_access', team=team_name, pw=pw))
@@ -368,6 +368,9 @@ def password_access(team):
   
     team_doc = get_or_new_team(app.db, None, team)
 
+    if team_doc is None:
+        flash('Team does not exist.', 'error')
+        return redirect(url_for('index'))
 
     # Store destination in session to redirect after successful password entry
     session['password_redirect'] = url_for('team_page', team_name=team)
