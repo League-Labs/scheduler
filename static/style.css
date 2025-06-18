@@ -100,7 +100,7 @@ li {
    
     margin-bottom: 2em;
 }
-.schedule-header, .schedule-hour {
+.schedule-header, .hour-label {
     background: #2d3237;
     color: #fff;
     font-weight: bold;
@@ -111,7 +111,7 @@ li {
     align-items: center;
     justify-content: center;
 }
-.schedule-hour {
+.hour-label {
     background: #222 !important;
     color: #fff !important;
 }
@@ -203,42 +203,70 @@ li {
     font-size: 0.95em;
 }
 
-/* Override existing schedule-header for team page */
-.schedule-grid .schedule-header {
-    background: #343a40;
-    color: #fff;
-    font-weight: bold;
-    padding-bottom: 5px;
-    margin-bottom: 5px;
+/* Cell colors according to specification */
+.bg-100 {
+    background: #0d5016 !important; /* dark green for 100% selection */
+    color: white;
+}
+.bg-1st {
+    background: #90EE90 !important; /* light green for 1st most common */
+    color: #222;
+}
+.bg-2nd {
+    background: #FFD700 !important; /* yellow for 2nd most common */
+    color: #222;
+}
+.bg-3rd {
+    background: #FFD700 !important; /* yellow for 3rd most common */
+    color: #222;
+}
+.bg-red {
+    background: #ffb3b3 !important; /* light red for < 70% */
+    color: #222;
+}
+.bg-white {
+    background: #fff !important; /* white for zero selections */
+    color: #222;
 }
 
-.schedule-grid .schedule-hour {
-    background: #f1f3f4;
-    font-weight: bold;
-}
-
-.schedule-cell.selected::after {
-    content: '';
-    display: block;
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
+/* Star icon for 100% selection */
+.star-icon {
     position: absolute;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-}
-
-.star {
+    left: 4px;
+    top: 4px;
+    font-size: 14px;
     color: gold;
-    font-size: 1.2em;
+    z-index: 3;
+    pointer-events: none;
 }
 
-.legend-swatch {
-    width: 24px;
-    height: 24px;
-    display: inline-block;
-    border-radius: 4px;
+/* Cell count display */
+.cell-count {
+    position: absolute;
+    right: 4px;
+    bottom: 2px;
+    font-size: 10px;
+    font-weight: bold;
+    background: rgba(255,255,255,0.8);
+    border-radius: 3px;
+    padding: 1px 3px;
+    z-index: 3;
+    pointer-events: none;
+    min-width: 12px;
+    text-align: center;
+}
+
+/* Make headers clickable */
+.day-header:hover,
+.hour-label:hover {
+    background-color: #495057 !important;
+    cursor: pointer;
+}
+
+/* Copy button styling */
+.day-header .btn {
+    font-size: 10px;
+    padding: 2px 6px;
 }
 
 /* Password section styling */

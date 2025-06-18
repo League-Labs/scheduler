@@ -5,7 +5,23 @@
 {% endblock %}
 {% block content %}
     <div class="container mt-3">
-        <h2>Schedule</h2>
+        <!-- Editable Schedule Name -->
+        <div class="mb-3">
+            <label for="schedule-name" class="form-label"><strong>Schedule Name:</strong></label>
+            <input type="text" class="form-control" id="schedule-name" value="{{ schedule.name or '' }}" placeholder="Enter schedule name">
+        </div>
+        
+        <!-- Editable Schedule Description -->
+        <div class="mb-4">
+            <label for="schedule-description" class="form-label"><strong>Description:</strong></label>
+            <textarea class="form-control" id="schedule-description" rows="3" placeholder="Enter schedule description">{{ schedule.description or '' }}</textarea>
+        </div>
+        
+        <!-- Save button for metadata -->
+        <div class="mb-4">
+            <button class="btn btn-success" id="save-metadata-btn">Save Schedule Info</button>
+            <span id="save-metadata-status" class="ms-3"></span>
+        </div>
         
         <!-- Schedule Grid -->
         <div id="spa-root">
@@ -23,6 +39,17 @@
                 <button class="btn btn-outline-secondary" type="button" onclick="copyUrl('schedule-url')">Copy</button>
             </div>
         </div>
+        
+        {% if schedule_url_with_pw %}
+        <!-- Management URL with password -->
+        <div class="alert alert-warning">
+            <p><strong>Management link (with password - for schedule owner):</strong></p>
+            <div class="input-group">
+                <input type="text" class="form-control" readonly value="{{ schedule_url_with_pw }}" id="schedule-url-pw">
+                <button class="btn btn-outline-secondary" type="button" onclick="copyUrl('schedule-url-pw')">Copy</button>
+            </div>
+        </div>
+        {% endif %}
         
         <!-- User specific URL -->
         <div class="alert alert-success">
@@ -62,6 +89,7 @@
         userId = "{{ user_id }}";
         window.isReadOnly = true;
         isReadOnly = true;
+        window.schedulePassword = "{{ schedule.password or '' }}";
         
         function copyUrl(elementId) {
             var copyText = document.getElementById(elementId);
@@ -71,10 +99,55 @@
             alert("URL copied to clipboard!");
         }
         
+        function saveScheduleMetadata() {
+            const saveBtn = document.getElementById('save-metadata-btn');
+            const saveStatus = document.getElementById('save-metadata-status');
+            const name = document.getElementById('schedule-name').value;
+            const description = document.getElementById('schedule-description').value;
+            
+            saveBtn.disabled = true;
+            saveStatus.textContent = 'Saving...';
+            
+            const data = {
+                name: name,
+                description: description,
+                pw: window.schedulePassword
+            };
+            
+            fetch(`/s/${window.scheduleId}/update`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(data => {
+                saveBtn.disabled = false;
+                if (data.error) {
+                    saveStatus.textContent = 'Error: ' + data.error;
+                } else {
+                    saveStatus.textContent = 'Saved!';
+                    setTimeout(() => {
+                        saveStatus.textContent = '';
+                    }, 2000);
+                }
+            })
+            .catch(error => {
+                console.error('Error saving metadata:', error);
+                saveBtn.disabled = false;
+                saveStatus.textContent = 'Error saving';
+            });
+        }
+        
         // Initialize schedule with read-only mode
         document.addEventListener('DOMContentLoaded', function() {
             // Variables already set above
             fetchScheduleInfo();
+            
+            // Setup save button for metadata
+            document.getElementById('save-metadata-btn').addEventListener('click', saveScheduleMetadata);
         });
     </script>
 {% endblock %}

@@ -6,7 +6,18 @@
 {% block content %}
 
     <div class="container mt-3">
+        <!-- Schedule Name and Description -->
+        {% if schedule.name %}
+        <h2>{{ schedule.name }}</h2>
+        {% else %}
         <h2>Schedule Response: {{ user_data.name if user_data and user_data.name else 'New User' }}</h2>
+        {% endif %}
+        
+        {% if schedule.description %}
+        <div class="alert alert-light mb-4">
+            <p class="mb-0">{{ schedule.description }}</p>
+        </div>
+        {% endif %}
         
         <!-- Schedule Grid -->
         <div id="spa-root">
@@ -62,8 +73,9 @@
         window.userId = "{{ user_id }}";
         scheduleId = "{{ schedule.id }}";
         userId = "{{ user_id }}";
-        window.isReadOnly = {{ is_read_only_json | safe }};
-        isReadOnly = {{ is_read_only_json | safe }};
+        isReadOnly = "{{ is_read_only_json  }}" == 'true';
+        
+        window.isReadOnly = isReadOnly;
         
         function copyUrl(elementId) {
             var copyText = document.getElementById(elementId);

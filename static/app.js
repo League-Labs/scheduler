@@ -37,27 +37,65 @@ function getCellColor(dayhour) {
 function renderGrid() {
     const grid = document.getElementById('schedule-grid');
     grid.innerHTML = '';
+    
     // Top-left empty
     grid.appendChild(cell('schedule-header', ''));
+    
     // Day headers
     for (let d = 0; d < DAYS.length; d++) {
         const headerDiv = document.createElement('div');
-        headerDiv.className = 'schedule-header';
+        headerDiv.className = 'schedule-header day-header';
         headerDiv.style.display = 'flex';
         headerDiv.style.flexDirection = 'column';
         headerDiv.style.alignItems = 'center';
         headerDiv.style.justifyContent = 'center';
+        headerDiv.dataset.day = DAYS[d];
+        
         // Day name
         const dayLabel = document.createElement('div');
         dayLabel.textContent = DAY_LABELS[d];
         headerDiv.appendChild(dayLabel);
+        
+        // Copy button (only show if not read-only)
+        if (!isReadOnly && d < DAYS.length - 1) { // Don't show copy button on last column
+            const copyBtn = document.createElement('button');
+            copyBtn.className = 'btn btn-sm btn-outline-secondary mt-1';
+            copyBtn.textContent = 'copy →';
+            copyBtn.onclick = function(e) {
+                e.stopPropagation();
+                copyColumn(d);
+            };
+            headerDiv.appendChild(copyBtn);
+        }
+        
+        // Make day header clickable (unless read-only)
+        if (!isReadOnly) {
+            headerDiv.style.cursor = 'pointer';
+            headerDiv.addEventListener('click', function() {
+                toggleColumn(d);
+            });
+        }
+        
         grid.appendChild(headerDiv);
     }
+    
     // Time rows
     for (let h = 0; h < HOURS.length; h++) {
         // Hour label
         const hour = HOURS[h];
-        grid.appendChild(cell('hour-label', HOUR_LABELS[h]));
+        const hourLabel = cell('hour-label', HOUR_LABELS[h]);
+        hourLabel.dataset.hour = hour;
+        
+        // Make hour label clickable (unless read-only)
+        if (!isReadOnly) {
+            hourLabel.style.cursor = 'pointer';
+            hourLabel.addEventListener('click', function() {
+                toggleRow(h);
+            });
+        }
+        
+        grid.appendChild(hourLabel);
+        
         // Day cells
         for (let d = 0; d < DAYS.length; d++) {
             const day = DAYS[d];
@@ -65,11 +103,23 @@ function renderGrid() {
             const dayhourCell = document.createElement('div');
             dayhourCell.className = 'schedule-cell';
             dayhourCell.dataset.key = key;
+            dayhourCell.dataset.day = day;
+            dayhourCell.dataset.hour = hour;
             dayhourCell.dataset.count = info.dayhours ? (info.dayhours[key] || 0) : 0;
             dayhourCell.classList.add(getCellColor(key));
+            
             if (selected.has(key)) {
                 dayhourCell.classList.add('selected');
             }
+            
+            // Add star icon for 100% selection
+            if (info.dayhours && info.count && info.dayhours[key] === info.count && info.count > 0) {
+                const starSpan = document.createElement('span');
+                starSpan.className = 'star-icon';
+                starSpan.textContent = '★';
+                dayhourCell.appendChild(starSpan);
+            }
+            
             // Show count if any selections
             if (info.dayhours && info.dayhours[key]) {
                 const countSpan = document.createElement('span');
@@ -77,14 +127,140 @@ function renderGrid() {
                 countSpan.textContent = info.dayhours[key];
                 dayhourCell.appendChild(countSpan);
             }
+            
             // Make cells clickable unless read-only
             if (!isReadOnly) {
                 dayhourCell.addEventListener('click', function() {
                     toggleCell(this);
                 });
             }
+            
             grid.appendChild(dayhourCell);
         }
+    }
+    
+    // Add instructions if not read-only
+    if (!isReadOnly) {
+        addInstructions();
+    }
+}
+
+function toggleRow(hourIndex) {
+    const hour = HOURS[hourIndex];
+    const rowCells = [];
+    
+    // Get all cells in this row
+    for (let d = 0; d < DAYS.length; d++) {
+        const key = dayhourKey(DAYS[d], hour);
+        rowCells.push(key);
+    }
+    
+    // Check if any cells in row are selected
+    const anySelected = rowCells.some(key => selected.has(key));
+    
+    // If any are selected, turn them all off. Otherwise, turn them all on.
+    rowCells.forEach(key => {
+        const cell = document.querySelector(`[data-key="${key}"]`);
+        if (anySelected) {
+            selected.delete(key);
+            cell.classList.remove('selected');
+        } else {
+            selected.add(key);
+            cell.classList.add('selected');
+        }
+    });
+    
+    markDirty();
+}
+
+function toggleColumn(dayIndex) {
+    const day = DAYS[dayIndex];
+    const columnCells = [];
+    
+    // Get all cells in this column
+    for (let h = 0; h < HOURS.length; h++) {
+        const key = dayhourKey(day, HOURS[h]);
+        columnCells.push(key);
+    }
+    
+    // Check if any cells in column are selected
+    const anySelected = columnCells.some(key => selected.has(key));
+    
+    // If any are selected, turn them all off. Otherwise, turn them all on.
+    columnCells.forEach(key => {
+        const cell = document.querySelector(`[data-key="${key}"]`);
+        if (anySelected) {
+            selected.delete(key);
+            cell.classList.remove('selected');
+        } else {
+            selected.add(key);
+            cell.classList.add('selected');
+        }
+    });
+    
+    markDirty();
+}
+
+function copyColumn(fromDayIndex) {
+    if (fromDayIndex >= DAYS.length - 1) return; // Can't copy from last column
+    
+    const fromDay = DAYS[fromDayIndex];
+    const toDay = DAYS[fromDayIndex + 1];
+    
+    // Get selections from source column
+    const fromSelections = [];
+    for (let h = 0; h < HOURS.length; h++) {
+        const key = dayhourKey(fromDay, HOURS[h]);
+        if (selected.has(key)) {
+            fromSelections.push(HOURS[h]);
+        }
+    }
+    
+    // Clear target column
+    for (let h = 0; h < HOURS.length; h++) {
+        const key = dayhourKey(toDay, HOURS[h]);
+        selected.delete(key);
+        const cell = document.querySelector(`[data-key="${key}"]`);
+        cell.classList.remove('selected');
+    }
+    
+    // Copy selections to target column
+    fromSelections.forEach(hour => {
+        const key = dayhourKey(toDay, hour);
+        selected.add(key);
+        const cell = document.querySelector(`[data-key="${key}"]`);
+        cell.classList.add('selected');
+    });
+    
+    markDirty();
+}
+
+function addInstructions() {
+    const grid = document.getElementById('schedule-grid');
+    const instructions = document.createElement('div');
+    instructions.className = 'instructions mt-3';
+    instructions.innerHTML = `
+        <div class="alert alert-info">
+            <h6>Instructions:</h6>
+            <ul class="mb-0">
+                <li>Click on individual cells to select/deselect times</li>
+                <li>Click on day names (column headers) to toggle entire days</li>
+                <li>Click on time labels (row headers) to toggle entire time slots</li>
+                <li>Use "copy →" buttons to copy a day's selections to the next day</li>
+            </ul>
+        </div>
+    `;
+    grid.parentNode.insertBefore(instructions, grid.nextSibling);
+}
+
+function markDirty() {
+    // Show save button as dirty
+    const saveBtn = document.getElementById('save-btn');
+    if (saveBtn) {
+        saveBtn.classList.add('btn-warning');
+        saveBtn.classList.remove('btn-success');
+        saveBtn.classList.remove('btn-primary');
+        document.getElementById('save-status').textContent = 'Unsaved changes';
     }
 }
 
@@ -104,14 +280,7 @@ function toggleCell(cell) {
         selected.add(key);
         cell.classList.add('selected');
     }
-    // Show save button as dirty
-    const saveBtn = document.getElementById('save-btn');
-    if (saveBtn) {
-        saveBtn.classList.add('btn-warning');
-        saveBtn.classList.remove('btn-success');
-        saveBtn.classList.remove('btn-primary');
-        document.getElementById('save-status').textContent = 'Unsaved changes';
-    }
+    markDirty();
 }
 
 function fetchScheduleInfo() {

@@ -161,3 +161,17 @@ U14: Sunday at 2PM.
 
 The `/new` route should not create a new schedule if the user does not have a
 session with a user id 
+
+
+# Sprints
+
+## Sprint 1
+
+The `meta.json` is a seperate file for each schedule and should be stored in the
+schedule directory. 
+
+The schedule view on the schdule page is non-editable, while the schedule on the
+user's page is editable. 
+
+Only the schedule page which is protected by a password, shows the list of users
+who responded. The  user's chedule page should not show the users who responded. 

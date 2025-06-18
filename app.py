@@ -93,16 +93,20 @@ app = init_app()
 logger = logging.getLogger("scheduler")
 logging.basicConfig(level=logging.INFO)
 
-def generate_random_id(length=12):
-    """Generate a random alphanumeric ID"""
-    chars = string.ascii_letters + string.digits
+def generate_random_id(length=6):
+    """Generate a random base-62 ID"""
+    chars = string.ascii_letters + string.digits  # Base-62: a-z, A-Z, 0-9
     return ''.join(random.choice(chars) for _ in range(length))
 
-def get_schedule_path(schedule_id):
-    """Get the path for a schedule's data file"""
+def get_meta_path(schedule_id):
+    """Get the path for a schedule's meta file"""
     data_dir = app.config['DATA_DIR']
     schedule_dir = os.path.join(data_dir, schedule_id)
-    return os.path.join(schedule_dir, "schedule.json")
+    return os.path.join(schedule_dir, "meta.json")
+
+def get_schedule_path(schedule_id):
+    """Get the path for a schedule's data file (alias for meta path for compatibility)"""
+    return get_meta_path(schedule_id)
 
 def get_user_path(schedule_id, user_id):
     """Get the path for a user's data file"""
@@ -116,8 +120,8 @@ def get_schedule_directory(schedule_id):
     return os.path.join(data_dir, schedule_id)
 
 def get_schedule_data(schedule_id):
-    """Get schedule data from file"""
-    file_path = get_schedule_path(schedule_id)
+    """Get schedule data from meta.json file"""
+    file_path = get_meta_path(schedule_id)
     if not os.path.exists(file_path):
         return None
     
@@ -129,13 +133,13 @@ def get_schedule_data(schedule_id):
         return None
 
 def save_schedule_data(schedule_id, data):
-    """Save schedule data to file"""
+    """Save schedule data to meta.json file"""
     schedule_dir = get_schedule_directory(schedule_id)
     
     # Ensure the schedule directory exists
     os.makedirs(schedule_dir, exist_ok=True)
     
-    file_path = get_schedule_path(schedule_id)
+    file_path = get_meta_path(schedule_id)
     
     try:
         with open(file_path, 'w') as f:
@@ -186,7 +190,7 @@ def get_all_users_for_schedule(schedule_id):
             return users
             
         for filename in os.listdir(schedule_dir):
-            if filename.endswith('.json') and filename != 'schedule.json':
+            if filename.endswith('.json') and filename != 'meta.json':
                 user_id = filename[:-5]  # Remove .json extension
                 user_data = get_user_data(schedule_id, user_id)
                 if user_data and 'name' in user_data:
@@ -223,23 +227,27 @@ def index():
 # --- Create a new schedule ---
 @app.route('/new')
 def new_schedule():
-    schedule_id = generate_random_id()
-    
-    # Create a new user ID if one doesn't exist
+    # The /new route should not create a new schedule if the user does not have a session with a user id
     if 'user_id' not in session:
         session['user_id'] = generate_random_id()
     
-    # Create and save empty schedule data
+    schedule_id = generate_random_id()
+    password = generate_random_id()
+    
+    # Create and save schedule metadata
     schedule_data = {
         'id': schedule_id,
+        'password': password,
+        'name': '',
+        'description': '',
         'created_at': datetime.now().isoformat(),
         'creator_id': session.get('user_id')
     }
     
     save_schedule_data(schedule_id, schedule_data)
     
-    # Redirect to the schedule page
-    return redirect(url_for('schedule_page', schedule_id=schedule_id))
+    # Redirect to the schedule page with password
+    return redirect(url_for('schedule_page', schedule_id=schedule_id, pw=password))
 
 # --- Set name form ---
 @app.route('/set_name', methods=['GET', 'POST'])
@@ -266,6 +274,26 @@ def schedule_page(schedule_id):
         flash('Schedule not found.', 'error')
         return redirect(url_for('index'))
     
+    # Handle password logic based on the specification
+    pw_param = request.args.get('pw')
+    schedule_password = schedule_data.get('password')
+    
+    if pw_param and schedule_password:
+        # ?pw exists, meta.json password exists: Check the password
+        if pw_param != schedule_password:
+            flash('Invalid password for this schedule.', 'error')
+            return redirect(url_for('index'))
+    elif not pw_param:
+        # ?pw does not exist: redirect to the user's schedule page
+        if 'user_id' not in session:
+            session['user_id'] = generate_random_id()
+        user_id = session.get('user_id')
+        return redirect(url_for('user_page', schedule_id=schedule_id, user_id=user_id))
+    elif pw_param and not schedule_password:
+        # ?pw exists, meta.json password does not: Redirect to index with error
+        flash('This schedule does not require a password.', 'error')
+        return redirect(url_for('index'))
+    
     # Create a new user ID if one doesn't exist
     if 'user_id' not in session:
         session['user_id'] = generate_random_id()
@@ -276,6 +304,7 @@ def schedule_page(schedule_id):
     users = get_all_users_for_schedule(schedule_id)
     
     schedule_url = url_for('schedule_page', schedule_id=schedule_id, _external=True)
+    schedule_url_with_pw = url_for('schedule_page', schedule_id=schedule_id, pw=schedule_password, _external=True) if schedule_password else None
     user_url = url_for('user_page', schedule_id=schedule_id, user_id=user_id, _external=True)
     
     return render_template('schedule.html', 
@@ -283,6 +312,7 @@ def schedule_page(schedule_id):
                           users=users, 
                           user_id=user_id,
                           schedule_url=schedule_url,
+                          schedule_url_with_pw=schedule_url_with_pw,
                           user_url=user_url)
 
 # --- User page ---
@@ -329,7 +359,7 @@ def schedule_info(schedule_id):
         app.logger.info(f"schedule_info: Getting info for schedule {schedule_id}")
         
         # Check if schedule exists first
-        schedule_path = get_schedule_path(schedule_id)
+        schedule_path = get_meta_path(schedule_id)
         if not os.path.exists(schedule_path):
             app.logger.warning(f"Schedule not found: {schedule_id}")
             error_response = json.dumps({"error": "Schedule not found"})
@@ -414,8 +444,47 @@ def user_selections(schedule_id, user_id):
     save_user_data(schedule_id, user_id, user_data)
     return jsonify({'status': 'ok'})
 
-
-
+# --- Update schedule metadata ---
+@app.route('/s/<schedule_id>/update', methods=['POST'])
+def update_schedule(schedule_id):
+    # Get current schedule data
+    schedule_data = get_schedule_data(schedule_id)
+    if not schedule_data:
+        return jsonify({'error': 'Schedule not found'}), 404
+    
+    # Check if user has permission (has password or is creator)
+    pw_param = request.form.get('pw') or request.json.get('pw') if request.is_json else None
+    current_user_id = session.get('user_id')
+    
+    # Allow update if user provides correct password or is the creator
+    has_permission = False
+    if schedule_data.get('password') and pw_param == schedule_data.get('password'):
+        has_permission = True
+    elif current_user_id == schedule_data.get('creator_id'):
+        has_permission = True
+    
+    if not has_permission:
+        return jsonify({'error': 'Not authorized to update this schedule'}), 403
+    
+    # Get update data
+    if request.is_json:
+        data = request.get_json()
+    else:
+        data = request.form.to_dict()
+    
+    # Update allowed fields
+    if 'name' in data:
+        schedule_data['name'] = data['name']
+    if 'description' in data:
+        schedule_data['description'] = data['description']
+    
+    schedule_data['updated_at'] = datetime.now().isoformat()
+    
+    # Save updated data
+    if save_schedule_data(schedule_id, schedule_data):
+        return jsonify({'status': 'ok', 'schedule': schedule_data})
+    else:
+        return jsonify({'error': 'Failed to save schedule'}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
