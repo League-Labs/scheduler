@@ -4,7 +4,8 @@ services:
     build: .
     command: gunicorn -b 0.0.0.0:8000 app:app
     volumes:
-      - ./data:/data
+      - scheduler_data:/data
+
 
     # These labels set up the domain name in the Caddy proxy
     labels:
@@ -21,6 +22,8 @@ services:
       - caddy
 
 
+volumes:
+  scheduler_data:
 
 networks:
   caddy:

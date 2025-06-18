@@ -29,17 +29,7 @@
                 </div>
                 
                 <!-- Instructions for editable schedule -->
-                <div class="instructions mt-3">
-                    <div class="alert alert-info">
-                        <h6>Instructions:</h6>
-                        <ul class="mb-0">
-                            <li>Click on individual cells to select/deselect times</li>
-                            <li>Click on day names (column headers) to toggle entire days</li>
-                            <li>Click on time labels (row headers) to toggle entire time slots</li>
-                            <li>Use "copy →" buttons to copy a day's selections to the next day</li>
-                        </ul>
-                    </div>
-                </div>
+                {% include 'instructions.html' %}
             {% else %}
                 <div class="alert alert-warning mt-3">
                     <p>You are viewing someone else's schedule. You cannot make changes.</p>
