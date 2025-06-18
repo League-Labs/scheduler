@@ -1,56 +1,53 @@
 # Simplified Scheduler Application
 
-This is a simplified scheduler application that helps coordinate meeting times between groups of people.
+This is a web-based scheduler application that helps coordinate meeting times between groups of people. It allows users to create schedules, mark their availability, and view aggregated results to find the best meeting times.
 
-## Features
 
-- Create schedules with unique IDs
-- Share schedule links with others
-- Allow users to mark their available time slots
-- View aggregated availability data 
-- No authentication required - user sessions are maintained with cookies
-- Data stored in JSON files for simplicity
+## Creating a Schedule
 
-## Routes
+1. **Start**: Visit the main page and click "New Schedule"
+2. **Configure**: 
+   - Add a schedule name and description (optional)
+   - Set a password for management access (optional)
+   - Save the schedule information
+3. **Share**: Copy and share the participant link with your team
 
-- `/`: Main page with "New" button to create a schedule
-- `/new`: Creates a new schedule and redirects to it
-- `/s/<schedule_id>`: The schedule page, showing all responses and the schedule grid
-- `/u/<schedule_id>/<user_id>`: A user's specific view of the schedule
+## Filling Out a Schedule
 
-## Running the Application
+1. **Access**: Click on a shared schedule link
+2. **Enter Name**: Provide your name when prompted
+3. **Mark Availability**: 
+   - Click cells in the grid to mark when you're available
+   - Green = selected, white = not selected
+   - Use day/hour headers to select entire rows/columns
+   - Use copy buttons to duplicate selections across days
+4. **Save**: Click "Save Selections" to submit your availability
 
-### Local Development
+## Viewing Results
 
-1. Install dependencies:
-   ```
-   pip install -r requirements.txt
-   ```
+The schedule overview shows:
+- **Numbers**: Count of people available for each time slot
+- **Colors**: 
+  - Green: High participation (most popular times)
+  - Yellow: Medium participation
+  - Red: Low participation
+  - White: No responses
+- **Stars (★)**: 100% participation (everyone is available)
 
-2. Run the application:
-   ```
-   python app.py
-   ```
+## Managing Schedules
 
-3. Visit http://localhost:5000 in your browser
+As a schedule owner, you can:
+- Edit schedule name and description
+- View all participant responses
+- Access management features with the password-protected link
+- See individual participant schedules
 
-### Docker
+## Sharing Options
 
-1. Start with Docker Compose:
-   ```
-   docker-compose up -d
-   ```
+The application provides three types of links:
 
-2. The application will be available at the configured domain or http://localhost:8000
+1. **Participant Link**: For team members to fill out their availability
+2. **Personal Link**: Direct access to your own response
+3. **Management Link**: Password-protected access for schedule owners
 
-## Configuration
 
-- `FLASK_SECRET_KEY`: Secret key for signing cookies
-- `DATA_DIR`: Directory for storing schedule data (defaults to `/data`)
-- `EXTERNAL_URL`: External URL for the application (for link generation)
-
-## Data Storage
-
-All schedule and user data is stored in JSON files in the `DATA_DIR` directory:
-- Schedule files: `s_<schedule_id>.json`
-- User response files: `u_<schedule_id>_<user_id>.json`

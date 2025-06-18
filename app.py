@@ -46,8 +46,12 @@ def init_app():
     app.config['SESSION_USE_SIGNER'] = True
     
     # Set up data directory
-    app.config['DATA_DIR'] = os.environ.get('DATA_DIR', '/data')
+    app.config['DATA_DIR'] = os.environ.get('DATA_DIR')
     
+    if not app.config['DATA_DIR']:
+        # Default to a 'data' directory in the current working directory
+        app.config['DATA_DIR'] = Path(__file__).parent / 'test/data'
+
     # Ensure data directory exists
     os.makedirs(app.config['DATA_DIR'], exist_ok=True)
     
