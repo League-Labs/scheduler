@@ -306,6 +306,7 @@ def schedule_page(schedule_id):
     schedule_url = url_for('schedule_page', schedule_id=schedule_id, _external=True)
     schedule_url_with_pw = url_for('schedule_page', schedule_id=schedule_id, pw=schedule_password, _external=True) if schedule_password else None
     user_url = url_for('user_page', schedule_id=schedule_id, user_id=user_id, _external=True)
+    show_instructions = False  # Schedule page is read-only, no instructions needed
     
     return render_template('schedule.html', 
                           schedule=schedule_data, 
@@ -313,7 +314,8 @@ def schedule_page(schedule_id):
                           user_id=user_id,
                           schedule_url=schedule_url,
                           schedule_url_with_pw=schedule_url_with_pw,
-                          user_url=user_url)
+                          user_url=user_url,
+                          show_instructions=show_instructions)
 
 # --- User page ---
 @app.route('/u/<schedule_id>/<user_id>')
@@ -334,6 +336,7 @@ def user_page(schedule_id, user_id):
     current_user_id = session.get('user_id')
     is_owner = (current_user_id == user_id)
     is_read_only_json = json.dumps(not is_owner)
+    show_instructions = is_owner  # Show instructions only for the owner
     
     schedule_url = url_for('schedule_page', schedule_id=schedule_id, _external=True)
     
@@ -343,6 +346,7 @@ def user_page(schedule_id, user_id):
                           user_id=user_id,
                           is_owner=is_owner,
                           is_read_only_json=is_read_only_json,
+                          show_instructions=show_instructions,
                           schedule_url=schedule_url)
 
 # --- Get schedule info ---

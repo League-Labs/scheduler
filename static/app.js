@@ -139,10 +139,7 @@ function renderGrid() {
         }
     }
     
-    // Add instructions if not read-only
-    if (!isReadOnly) {
-        addInstructions();
-    }
+    // Instructions are now in the template, controlled by Jinja variables
 }
 
 function toggleRow(hourIndex) {
@@ -233,24 +230,6 @@ function copyColumn(fromDayIndex) {
     });
     
     markDirty();
-}
-
-function addInstructions() {
-    const grid = document.getElementById('schedule-grid');
-    const instructions = document.createElement('div');
-    instructions.className = 'instructions mt-3';
-    instructions.innerHTML = `
-        <div class="alert alert-info">
-            <h6>Instructions:</h6>
-            <ul class="mb-0">
-                <li>Click on individual cells to select/deselect times</li>
-                <li>Click on day names (column headers) to toggle entire days</li>
-                <li>Click on time labels (row headers) to toggle entire time slots</li>
-                <li>Use "copy →" buttons to copy a day's selections to the next day</li>
-            </ul>
-        </div>
-    `;
-    grid.parentNode.insertBefore(instructions, grid.nextSibling);
 }
 
 function markDirty() {
