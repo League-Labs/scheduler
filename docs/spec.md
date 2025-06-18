@@ -1,26 +1,24 @@
 # League Labs Scheduler
 
-This web application helps a teacher schedule meetings with students in a class.
-The students can log into the application with Github and will see a
-representation of a week, with one box per hour, per day, for a single week. The
-students will click on all of the boxes for an hour where the students can meet
-with the class. The application will store these records in a MongoDB database
-and compile all of the records to help the teacher pick a good time for a meeting. 
-
-
-
+This web application helps a people schedule meetings with others. The users
+will see a representation of a week, with one box per hour, per day, for a
+single week. The students will click on all of the boxes for an hour where the
+students can meet with the class. The application will store these records  and
+compile all of the records to help the user pick a good time for a meeting. 
 
 ## Pages
 
 Sessions are stored in Cookies, and users will get a session from any page. The
-session primarily holds the 6 digit base-62 user id.
+session primarily holds the 6 digit base-62 user id and the user's full name. 
 
 ### The Index page
 
-The Index page shows a "new"  to create a new schedule, when user click on the
-new button, it wil  redirect to the new schedule page. The redirection will
-include the query arg `?pw=<passwword>` where `password` is a 6 digit base-62
-random string. 
+The Index page shows a "new"  button to create a new schedule. When user clicks
+on the "new" button, it wil redirect to the `/new` new schedule page. That page
+will create a database ( filesystem ) entry for the new schedule ( including
+creating the password ), then it will redirect to the schedule page.  The
+redirection will include the query arg `?pw=<passwword>` where `password` is a 6
+digit base-62 random string. 
 
 ### Schedule page
 
@@ -28,15 +26,20 @@ When the schedule page loads, it looks for the `?pw=<password>` argument.
 Different things can heppend depending on the combinations of the `?pw` arg
 being set and the password being set in the `meta.json` file exising:
 
-* `?pw` exists, `meta.json` password does not: Set the password in the `meta.json` file
-* `?pw` exists, `meta.json` password exists: Check the password, redirect to index with flash error if the passwords to not match
-* `?pw` does not exist: redirect to the user's schedule page, based on the user id in the session 
+* `?pw` exists, `meta.json` password exists: Check the password, redirect to
+  index with flash error if the passwords to not match
+* `?pw` does not exist: redirect to the user's schedule page, based on the user
+  id in the session 
+* `?pw` exists, `meta.json` password does not: Redirect to index with a flash
+  error message. 
 
 The schedule page shows:
 
 * A non-editable schedule
-* The URL for the page schedule page without the password ( To give to other users ) 
-* The URL for the page schedule page with the password ( For the user to manage the page ) 
+* The URL for the page schedule page without the password ( To give to other
+  users ) 
+* The URL for the page schedule page with the password ( For the user to manage
+  the page ) 
 * A button to take the current user to the user's scheduling page. 
 * A list of the names of the users who have submitted responses. 
 * An editable string for the name of the schedule
@@ -148,7 +151,6 @@ A Dayhour is recorded by concatenating the two, so:
 
 W08: Wednesday at 8AM
 U14: Sunday at 2PM. 
-
 
 ## Routes
 
