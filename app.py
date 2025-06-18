@@ -101,12 +101,19 @@ def generate_random_id(length=12):
 def get_schedule_path(schedule_id):
     """Get the path for a schedule's data file"""
     data_dir = app.config['DATA_DIR']
-    return os.path.join(data_dir, f"s_{schedule_id}.json")
+    schedule_dir = os.path.join(data_dir, schedule_id)
+    return os.path.join(schedule_dir, "schedule.json")
 
 def get_user_path(schedule_id, user_id):
     """Get the path for a user's data file"""
     data_dir = app.config['DATA_DIR']
-    return os.path.join(data_dir, f"u_{schedule_id}_{user_id}.json")
+    schedule_dir = os.path.join(data_dir, schedule_id)
+    return os.path.join(schedule_dir, f"{user_id}.json")
+
+def get_schedule_directory(schedule_id):
+    """Get the directory path for a schedule"""
+    data_dir = app.config['DATA_DIR']
+    return os.path.join(data_dir, schedule_id)
 
 def get_schedule_data(schedule_id):
     """Get schedule data from file"""
@@ -123,6 +130,11 @@ def get_schedule_data(schedule_id):
 
 def save_schedule_data(schedule_id, data):
     """Save schedule data to file"""
+    schedule_dir = get_schedule_directory(schedule_id)
+    
+    # Ensure the schedule directory exists
+    os.makedirs(schedule_dir, exist_ok=True)
+    
     file_path = get_schedule_path(schedule_id)
     
     try:
@@ -148,6 +160,11 @@ def get_user_data(schedule_id, user_id):
 
 def save_user_data(schedule_id, user_id, data):
     """Save user data to file"""
+    schedule_dir = get_schedule_directory(schedule_id)
+    
+    # Ensure the schedule directory exists
+    os.makedirs(schedule_dir, exist_ok=True)
+    
     file_path = get_user_path(schedule_id, user_id)
     
     try:
@@ -160,14 +177,17 @@ def save_user_data(schedule_id, user_id, data):
 
 def get_all_users_for_schedule(schedule_id):
     """Get all users who have responded to a schedule"""
-    data_dir = app.config['DATA_DIR']
-    prefix = f"u_{schedule_id}_"
+    schedule_dir = get_schedule_directory(schedule_id)
     users = []
     
     try:
-        for filename in os.listdir(data_dir):
-            if filename.startswith(prefix) and filename.endswith('.json'):
-                user_id = filename[len(prefix):-5]  # Remove prefix and .json extension
+        # Check if schedule directory exists
+        if not os.path.exists(schedule_dir):
+            return users
+            
+        for filename in os.listdir(schedule_dir):
+            if filename.endswith('.json') and filename != 'schedule.json':
+                user_id = filename[:-5]  # Remove .json extension
                 user_data = get_user_data(schedule_id, user_id)
                 if user_data and 'name' in user_data:
                     users.append({

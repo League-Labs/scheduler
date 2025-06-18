@@ -58,3 +58,17 @@ Store the data that user submits in a file in the file system. The root
 directory is configurable with an env var but defaults to /data. The path
 is the same as the path portion of the URL to the user page, but with a
 .json extension. 
+
+# Sprint 1
+
+The files saved in the data directory must have both the schedule id and the user id in the
+path. The schedule id is a directory, and the user is a file name, with a .json extension. 
+
+In the schedule page, put the page url and users list below the schedule box
+
+Update: put the page url and users list below the schedule box * on both the schedule page and the user page *
+
+
+# Sprint 2
+
+When I click on a dayhour, 

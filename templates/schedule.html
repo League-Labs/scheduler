@@ -7,8 +7,16 @@
     <div class="container mt-3">
         <h2>Schedule</h2>
         
+        <!-- Schedule Grid -->
+        <div id="spa-root">
+            <div class="schedule-grid" id="schedule-grid"></div>
+            <div class="mt-3">
+                <a href="{{ url_for('user_page', schedule_id=schedule.id, user_id=user_id) }}" class="btn btn-primary">Go to Your Response</a>
+            </div>
+        </div>
+        
         <!-- Schedule URL Display -->
-        <div class="alert alert-info">
+        <div class="alert alert-info mt-4">
             <p><strong>Share this link with others:</strong></p>
             <div class="input-group">
                 <input type="text" class="form-control" readonly value="{{ schedule_url }}" id="schedule-url">
@@ -42,14 +50,6 @@
                 {% else %}
                     <p>No one has responded yet.</p>
                 {% endif %}
-            </div>
-        </div>
-        
-        <!-- Schedule Grid -->
-        <div id="spa-root">
-            <div class="schedule-grid" id="schedule-grid"></div>
-            <div class="mt-3">
-                <a href="{{ url_for('user_page', schedule_id=schedule.id, user_id=user_id) }}" class="btn btn-primary">Go to Your Response</a>
             </div>
         </div>
     </div>
