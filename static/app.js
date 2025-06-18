@@ -36,6 +36,8 @@ function getCellColor(dayhour) {
 
 function renderGrid() {
     const grid = document.getElementById('schedule-grid');
+    if (!grid) return; // Exit if grid doesn't exist (e.g., on schedule page)
+    
     grid.innerHTML = '';
     
     // Top-left empty
@@ -326,6 +328,7 @@ function fetchScheduleInfo() {
         }
         info = data;
         renderGrid();
+        renderSummaryGrid(); // Also render summary grid if it exists
         setupSaveButton();
         setupNameInput();
     })
@@ -498,6 +501,65 @@ function setupNameInput() {
                 nameError.classList.add('d-none');
             }
         });
+    }
+}
+
+function renderSummaryGrid() {
+    const grid = document.getElementById('summary-schedule-grid');
+    if (!grid) return;
+    
+    grid.innerHTML = '';
+    
+    // Top-left empty
+    const emptyHeader = document.createElement('div');
+    emptyHeader.className = 'summary-schedule-header';
+    grid.appendChild(emptyHeader);
+    
+    // Day headers
+    for (let d = 0; d < DAYS.length; d++) {
+        const headerDiv = document.createElement('div');
+        headerDiv.className = 'summary-schedule-header';
+        headerDiv.textContent = DAY_LABELS[d];
+        grid.appendChild(headerDiv);
+    }
+    
+    // Time rows
+    for (let h = 0; h < HOURS.length; h++) {
+        // Hour label
+        const hour = HOURS[h];
+        const hourLabel = document.createElement('div');
+        hourLabel.className = 'summary-hour-label';
+        hourLabel.textContent = HOUR_LABELS[h];
+        grid.appendChild(hourLabel);
+        
+        // Day cells
+        for (let d = 0; d < DAYS.length; d++) {
+            const day = DAYS[d];
+            const key = dayhourKey(day, hour);
+            
+            const dayhourCell = document.createElement('div');
+            dayhourCell.className = 'summary-schedule-cell';
+            dayhourCell.dataset.key = key;
+            
+            // Set background color based on selection count
+            const colorClass = getCellColor(key);
+            dayhourCell.classList.add(colorClass);
+            
+            // Show count if any selections
+            if (info.dayhours && info.dayhours[key]) {
+                dayhourCell.textContent = info.dayhours[key];
+            }
+            
+            // Add star icon for 100% selection
+            if (info.dayhours && info.count && info.dayhours[key] === info.count && info.count > 0) {
+                const starSpan = document.createElement('span');
+                starSpan.className = 'summary-star-icon';
+                starSpan.textContent = '★';
+                dayhourCell.appendChild(starSpan);
+            }
+            
+            grid.appendChild(dayhourCell);
+        }
     }
 }
 

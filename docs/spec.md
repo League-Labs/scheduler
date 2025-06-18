@@ -175,3 +175,10 @@ user's page is editable.
 
 Only the schedule page which is protected by a password, shows the list of users
 who responded. The  user's chedule page should not show the users who responded. 
+
+## Sprint 2
+
+Create a new schedule for the schedule page ( dont change the ditable schedule
+on the user's page). The new schedule should be smaller and not editable. Just
+include in each cell the number of submissions, the background color, and the
+start for selected responses. 
