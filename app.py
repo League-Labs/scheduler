@@ -257,10 +257,18 @@ def set_name():
     if request.method == 'POST':
         name = request.form.get('name')
         if not name:
+            # Handle AJAX requests
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'error': 'Please enter a name.'}), 400
             flash('Please enter a name.', 'error')
             return redirect(url_for('set_name', next=next_url))
         
         session['name'] = name
+        
+        # Handle AJAX requests
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'status': 'ok'})
+            
         return redirect(next_url)
     
     return render_template('set_name.html', next=next_url)

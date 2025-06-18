@@ -10,7 +10,7 @@
         {% if schedule.name %}
         <h2>{{ schedule.name }}</h2>
         {% else %}
-        <h2>Schedule Response: {{ user_data.name if user_data and user_data.name else 'New User' }}</h2>
+        <h2>Schedule Response</h2>
         {% endif %}
         
         {% if schedule.description %}
@@ -23,7 +23,15 @@
         <div id="spa-root">
             <div class="schedule-grid" id="schedule-grid"></div>
             {% if is_owner %}
+                <!-- Name form field -->
                 <div class="mt-3">
+                    <div class="mb-3">
+                        <label for="user-name" class="form-label">Your Name</label>
+                        <input type="text" class="form-control" id="user-name" name="user-name" 
+                               value="{{ session.get('name', '') }}" placeholder="Enter your name" required>
+                      
+                        <div id="name-error" class="text-danger d-none">Please enter your name before saving selections.</div>
+                    </div>
                     <button class="btn btn-primary" id="save-btn">Save Selections</button>
                     <span id="save-status" class="ms-3"></span>
                 </div>

@@ -231,7 +231,7 @@ li {
 /* Star icon for 100% selection */
 .star-icon {
     position: absolute;
-    left: 4px;
+    right: 4px;
     top: 4px;
     font-size: 14px;
     color: gold;

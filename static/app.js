@@ -327,6 +327,7 @@ function fetchScheduleInfo() {
         info = data;
         renderGrid();
         setupSaveButton();
+        setupNameInput();
     })
     .catch(error => {
         
@@ -357,6 +358,22 @@ function setupSaveButton() {
 function saveSelections() {
     const saveBtn = document.getElementById('save-btn');
     const saveStatus = document.getElementById('save-status');
+    const nameInput = document.getElementById('user-name');
+    const nameError = document.getElementById('name-error');
+    
+    // Validate name input
+    if (nameInput && (!nameInput.value || nameInput.value.trim() === '')) {
+        if (nameError) {
+            nameError.classList.remove('d-none');
+        }
+        nameInput.focus();
+        return;
+    }
+    
+    // Hide name error if it was showing
+    if (nameError) {
+        nameError.classList.add('d-none');
+    }
     
     // Make sure we're using window variables if available
     const currentScheduleId = window.scheduleId || scheduleId;
@@ -371,13 +388,33 @@ function saveSelections() {
     saveBtn.disabled = true;
     saveStatus.textContent = 'Saving...';
     
-    fetch(`/u/${currentScheduleId}/${currentUserId}/selections`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest'
-        },
-        body: JSON.stringify(Array.from(selected))
+    // First, update the name in session if it has changed
+    const userName = nameInput ? nameInput.value.trim() : null;
+    const savePromise = userName ? 
+        fetch('/set_name', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: 'name=' + encodeURIComponent(userName)
+        }).then(response => {
+            if (!response.ok) {
+                throw new Error('Failed to save name');
+            }
+            return response;
+        }) : 
+        Promise.resolve();
+    
+    savePromise.then(() => {
+        return fetch(`/u/${currentScheduleId}/${currentUserId}/selections`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify(Array.from(selected))
+        });
     })
     .then(response => {
         if (response.status === 403) {
@@ -449,6 +486,19 @@ function loadUserSelections() {
         fetchScheduleInfo();
     })
     .catch(error => console.error('Error loading selections:', error));
+}
+
+function setupNameInput() {
+    const nameInput = document.getElementById('user-name');
+    const nameError = document.getElementById('name-error');
+    
+    if (nameInput && nameError) {
+        nameInput.addEventListener('input', function() {
+            if (nameInput.value.trim() !== '') {
+                nameError.classList.add('d-none');
+            }
+        });
+    }
 }
 
 // Schedule initialization will be done in the individual pages' script sections

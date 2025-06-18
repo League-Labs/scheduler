@@ -6,7 +6,6 @@ services:
     volumes:
       - scheduler_data:/data
 
-
     # These labels set up the domain name in the Caddy proxy
     labels:
       caddy: schedule.jtlapp.net
