@@ -8,16 +8,18 @@ const HOUR_LABELS = [
     '8am', '9am', '10am', '11am', '12pm', '1pm', '2pm', '3pm', '4pm', '5pm', '6pm', '7pm', '8pm', '9pm'
 ];
 
-const team = window.location.pathname.split('/')[1];
 let selected = new Set();
 let info = {};
+let isReadOnly = false;
+let scheduleId = '';
+let userId = '';
 
 function dayhourKey(day, hour) {
     return day + hour;
 }
 
 function getCellColor(dayhour) {
-    if (!info.dayhours || !info.count) return '';
+    if (!info.dayhours || !info.count) return 'bg-white';
     const count = info.dayhours[dayhour] || 0;
     if (count === 0) return 'bg-white';
     // Build sorted unique list of counts
@@ -37,7 +39,7 @@ function renderGrid() {
     grid.innerHTML = '';
     // Top-left empty
     grid.appendChild(cell('schedule-header', ''));
-    // Day headers + copy buttons
+    // Day headers
     for (let d = 0; d < DAYS.length; d++) {
         const headerDiv = document.createElement('div');
         headerDiv.className = 'schedule-header';
@@ -48,202 +50,257 @@ function renderGrid() {
         // Day name
         const dayLabel = document.createElement('div');
         dayLabel.textContent = DAY_LABELS[d];
-        dayLabel.style.cursor = 'pointer';
-        dayLabel.onclick = () => toggleDay(DAYS[d]);
         headerDiv.appendChild(dayLabel);
-        // Copy button (except last column)
-        if (d < DAYS.length - 1) {
-            const copyBtn = document.createElement('button');
-            copyBtn.textContent = 'copy →';
-            copyBtn.className = 'copy-btn';
-            copyBtn.style.fontSize = '0.8em';
-            copyBtn.style.marginTop = '2px';
-            copyBtn.onclick = (e) => {
-                e.stopPropagation();
-                copyColumn(d);
-            };
-            headerDiv.appendChild(copyBtn);
-        } else {
-            // For last column, add empty space for alignment
-            const emptyDiv = document.createElement('div');
-            emptyDiv.style.height = '1.7em';
-            headerDiv.appendChild(emptyDiv);
-        }
         grid.appendChild(headerDiv);
     }
-    // Hour rows
+    // Time rows
     for (let h = 0; h < HOURS.length; h++) {
-        // Start a new row
-        // Hour header
-        grid.appendChild(cell('schedule-hour', HOUR_LABELS[h], {
-            onclick: () => toggleHour(HOURS[h])
-        }));
+        // Hour label
+        const hour = HOURS[h];
+        grid.appendChild(cell('hour-label', HOUR_LABELS[h]));
+        // Day cells
         for (let d = 0; d < DAYS.length; d++) {
-            const key = dayhourKey(DAYS[d], HOURS[h]);
-            const isSelected = selected.has(key);
-            const colorClass = getCellColor(key);
-            let count = info.dayhours ? (info.dayhours[key] || 0) : 0;
-            let inner = '';
-            if (isSelected) {
-                inner += '<span class="dot"></span>';
+            const day = DAYS[d];
+            const key = dayhourKey(day, hour);
+            const dayhourCell = document.createElement('div');
+            dayhourCell.className = 'schedule-cell';
+            dayhourCell.dataset.key = key;
+            dayhourCell.dataset.count = info.dayhours ? (info.dayhours[key] || 0) : 0;
+            dayhourCell.classList.add(getCellColor(key));
+            if (selected.has(key)) {
+                dayhourCell.classList.add('selected');
             }
-            if (colorClass === 'bg-100') {
-                inner += '<span class="star">★</span>';
+            // Show count if any selections
+            if (info.dayhours && info.dayhours[key]) {
+                const countSpan = document.createElement('span');
+                countSpan.className = 'cell-count';
+                countSpan.textContent = info.dayhours[key];
+                dayhourCell.appendChild(countSpan);
             }
-            if (count > 0) {
-                inner += `<span class="count">${count}</span>`;
+            // Make cells clickable unless read-only
+            if (!isReadOnly) {
+                dayhourCell.addEventListener('click', function() {
+                    toggleCell(this);
+                });
             }
-            grid.appendChild(cellHtml(
-                `schedule-cell${isSelected ? ' selected' : ''}${colorClass ? ' ' + colorClass : ''}`,
-                inner,
-                {
-                    onclick: () => toggleCell(key)
-                }
-            ));
+            grid.appendChild(dayhourCell);
         }
     }
 }
 
-function cell(cls, text, opts = {}) {
-    const el = document.createElement('div');
-    el.className = cls;
-    el.textContent = text;
-    if (opts.onclick) el.onclick = opts.onclick;
-    return el;
+function cell(className, text) {
+    const div = document.createElement('div');
+    div.className = className;
+    div.textContent = text;
+    return div;
 }
 
-function cellHtml(cls, html, opts = {}) {
-    const el = document.createElement('div');
-    el.className = cls;
-    el.innerHTML = html;
-    if (opts.onclick) el.onclick = opts.onclick;
-    return el;
-}
-
-function toggleCell(key) {
-    if (selected.has(key)) selected.delete(key);
-    else selected.add(key);
-    renderGrid();
-}
-
-function toggleHour(hour) {
-    let anySelected = false;
-    for (let d = 0; d < DAYS.length; d++) {
-        if (selected.has(dayhourKey(DAYS[d], hour))) anySelected = true;
+function toggleCell(cell) {
+    const key = cell.dataset.key;
+    if (selected.has(key)) {
+        selected.delete(key);
+        cell.classList.remove('selected');
+    } else {
+        selected.add(key);
+        cell.classList.add('selected');
     }
-    for (let d = 0; d < DAYS.length; d++) {
-        const key = dayhourKey(DAYS[d], hour);
-        if (anySelected) selected.delete(key);
-        else selected.add(key);
+    // Show save button as dirty
+    const saveBtn = document.getElementById('save-btn');
+    if (saveBtn) {
+        saveBtn.classList.add('btn-warning');
+        saveBtn.classList.remove('btn-success');
+        saveBtn.classList.remove('btn-primary');
+        document.getElementById('save-status').textContent = 'Unsaved changes';
     }
-    renderGrid();
 }
 
-function toggleDay(day) {
-    let anySelected = false;
-    for (let h = 0; h < HOURS.length; h++) {
-        if (selected.has(dayhourKey(day, HOURS[h]))) anySelected = true;
-    }
-    for (let h = 0; h < HOURS.length; h++) {
-        const key = dayhourKey(day, HOURS[h]);
-        if (anySelected) selected.delete(key);
-        else selected.add(key);
-    }
-    renderGrid();
-}
-
-function copyColumn(colIdx) {
-    // Copy all selected cells from column colIdx to colIdx+1
-    for (let h = 0; h < HOURS.length; h++) {
-        const fromKey = dayhourKey(DAYS[colIdx], HOURS[h]);
-        const toKey = dayhourKey(DAYS[colIdx + 1], HOURS[h]);
-        if (selected.has(fromKey)) {
-            selected.add(toKey);
-        } else {
-            selected.delete(toKey);
+function fetchScheduleInfo() {
+    // Make sure we're using the window.scheduleId if available
+    const currentScheduleId = window.scheduleId || scheduleId;
+    
+    console.log(`Fetching schedule info for scheduleId: ${currentScheduleId}`);
+    
+    // Check if scheduleId is missing
+    if (!currentScheduleId) {
+        console.error("Missing scheduleId - cannot fetch schedule info");
+        const grid = document.getElementById('schedule-grid');
+        if (grid) {
+            grid.innerHTML = `<div class="alert alert-danger">
+                <strong>Error: Missing schedule ID</strong>
+                <p>The schedule ID was not found. Please try refreshing the page or returning to the home page.</p>
+                <p><a href="/" class="btn btn-primary mt-3">Return to Home</a></p>
+            </div>`;
         }
+        return;
     }
-    renderGrid();
-}
-
-async function fetchSelections() {
-    try {
-        const resp = await fetch(`/${team}/selections`);
-        if (resp.ok) {
-            const data = await resp.json();
-            selected = new Set(data);
-        } else if (resp.status === 401) {
-            // User needs to log in
-            document.getElementById('save-btn').disabled = true;
-            document.getElementById('save-btn').title = "Please log in to save selections";
-            document.getElementById('save-status').textContent = 'Please log in to save selections';
-            document.getElementById('save-status').className = 'text-warning';
-        } else if (resp.status === 403) {
-            // Password access required
-            document.getElementById('save-btn').disabled = true;
-            document.getElementById('save-btn').title = "Access denied";
-            document.getElementById('save-status').textContent = 'Access denied';
-            document.getElementById('save-status').className = 'text-danger';
-        }
-    } catch (err) {
-        console.error("Error fetching selections:", err);
-    }
-}
-
-async function fetchInfo() {
-    try {
-        const resp = await fetch(`/${team}/info`);
-        if (resp.ok) {
-            info = await resp.json();
-        } else if (resp.status === 403) {
-            // Password access required
-            document.getElementById('save-status').textContent = 'Access denied';
-            document.getElementById('save-status').className = 'text-danger';
-        }
-    } catch (err) {
-        console.error("Error fetching team info:", err);
-    }
-}
-
-async function saveSelections() {
-    try {
-        const resp = await fetch(`/${team}/selections`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(Array.from(selected))
-        });
+    
+    // Create a new AbortController to allow cancelling the fetch request
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+    
+    fetch(`/s/${currentScheduleId}/info`, {
+        method: 'GET',
+        headers: {
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        signal: controller.signal
+    })
+    .then(response => {
+        clearTimeout(timeoutId);
+        console.log('Response status:', response.status);
+        console.log('Response headers:', response.headers);
         
-        if (resp.ok) {
-            document.getElementById('save-status').textContent = 'Saved!';
-            document.getElementById('save-status').className = 'text-success';
-            await fetchInfo();
-            renderGrid();
-            setTimeout(() => {
-                document.getElementById('save-status').textContent = '';
-                document.getElementById('save-status').className = '';
-            }, 1200);
-        } else if (resp.status === 401) {
-            // Not authenticated
-            document.getElementById('save-status').textContent = 'Please log in to save selections';
-            document.getElementById('save-status').className = 'text-warning';
-        } else if (resp.status === 403) {
-            // Access denied
-            document.getElementById('save-status').textContent = 'Access denied';
-            document.getElementById('save-status').className = 'text-danger';
-        } else {
-            document.getElementById('save-status').textContent = 'Error saving!';
-            document.getElementById('save-status').className = 'text-danger';
+        // Check content type
+        const contentType = response.headers.get('content-type');
+        console.log('Content-Type:', contentType);
+        
+        if (!contentType || !contentType.includes('application/json')) {
+            // If not JSON, read as text to see what we got
+            return response.text().then(text => {
+                console.log('Non-JSON response:', text.substring(0, 200) + '...');
+                throw new Error(`Server returned a non-JSON response from /s/${scheduleId}/info`);
+            });
         }
-    } catch (err) {
-        console.error("Error saving selections:", err);
-        document.getElementById('save-status').textContent = 'Error saving!';
-        document.getElementById('save-status').className = 'text-danger';
-    }
+        
+        if (!response.ok) {
+            return response.json().then(data => {
+                throw new Error(data.error || `Server error: ${response.status}`);
+            });
+        }
+        
+        return response.json();
+    })
+    .then(data => {
+        console.log('Received data:', data);
+        if (data.error) {
+            throw new Error(data.error);
+        }
+        info = data;
+        renderGrid();
+        setupSaveButton();
+    })
+    .catch(error => {
+        
+        console.error('Error fetching schedule info:', error);
+        // Display user-friendly error message on the page
+        const grid = document.getElementById('schedule-grid');
+        if (grid) {
+            grid.innerHTML = `<div class="alert alert-danger">
+                <strong>Error loading schedule information</strong>
+                <p>Please check that the schedule exists and try refreshing the page.</p>
+                <p><small>Technical details: ${error.message}</small></p>
+                <p><a href="/" class="btn btn-primary mt-3">Return to Home</a></p>
+            </div>`;
+        }
+    });
 }
 
-document.addEventListener('DOMContentLoaded', async () => {
-    await fetchSelections();
-    await fetchInfo();
-    renderGrid();
-    document.getElementById('save-btn').onclick = saveSelections;
-});
+function setupSaveButton() {
+    const saveBtn = document.getElementById('save-btn');
+    if (!saveBtn || isReadOnly) return;
+    
+    saveBtn.addEventListener('click', function() {
+        // Call the API to save selections
+        saveSelections();
+    });
+}
+
+function saveSelections() {
+    const saveBtn = document.getElementById('save-btn');
+    const saveStatus = document.getElementById('save-status');
+    
+    // Make sure we're using window variables if available
+    const currentScheduleId = window.scheduleId || scheduleId;
+    const currentUserId = window.userId || userId;
+    
+    if (!currentScheduleId || !currentUserId) {
+        console.error("Missing scheduleId or userId - cannot save selections");
+        saveStatus.textContent = 'Error: Missing schedule or user ID';
+        return;
+    }
+    
+    saveBtn.disabled = true;
+    saveStatus.textContent = 'Saving...';
+    
+    fetch(`/u/${currentScheduleId}/${currentUserId}/selections`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify(Array.from(selected))
+    })
+    .then(response => {
+        if (response.status === 403) {
+            // Name required
+            window.location.href = '/set_name?next=' + encodeURIComponent(window.location.pathname);
+            return null;
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (!data) return; // Redirect happened
+        
+        saveBtn.disabled = false;
+        saveBtn.classList.remove('btn-warning');
+        saveBtn.classList.add('btn-success');
+        saveStatus.textContent = 'Saved!';
+        
+        // Refresh the info after saving
+        fetchScheduleInfo();
+        
+        // Reset to primary button after 2 seconds
+        setTimeout(() => {
+            saveBtn.classList.remove('btn-success');
+            saveBtn.classList.add('btn-primary');
+            saveStatus.textContent = '';
+        }, 2000);
+    })
+    .catch(error => {
+        console.error('Error saving selections:', error);
+        saveBtn.disabled = false;
+        saveStatus.textContent = 'Error saving: ' + error.message;
+    });
+}
+
+function loadUserSelections() {
+    // Make sure we're using window variables if available
+    const currentScheduleId = window.scheduleId || scheduleId;
+    const currentUserId = window.userId || userId;
+    
+    if (!currentScheduleId || !currentUserId) {
+        console.error("Missing scheduleId or userId - cannot load selections");
+        const grid = document.getElementById('schedule-grid');
+        if (grid) {
+            grid.innerHTML = `<div class="alert alert-danger">
+                <strong>Error: Missing schedule or user ID</strong>
+                <p>The necessary IDs were not found. Please try refreshing the page or returning to the home page.</p>
+                <p><a href="/" class="btn btn-primary mt-3">Return to Home</a></p>
+            </div>`;
+        }
+        return;
+    }
+    
+    console.log(`Loading selections for schedule: ${currentScheduleId}, user: ${currentUserId}`);
+    
+    fetch(`/u/${currentScheduleId}/${currentUserId}/selections`, {
+        headers: {
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        selected = new Set(data);
+        fetchScheduleInfo();
+    })
+    .catch(error => console.error('Error loading selections:', error));
+}
+
+// Schedule initialization will be done in the individual pages' script sections

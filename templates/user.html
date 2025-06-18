@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}Your Schedule Response{% endblock %}
+{% block head %}
+    <script src="{{ url_for('static', filename='app.js') }}" defer></script>
+{% endblock %}
+{% block content %}
+
+    <div class="container mt-3">
+        <h2>Schedule Response: {{ user_data.name if user_data and user_data.name else 'New User' }}</h2>
+        
+        <!-- Schedule URL Display -->
+        <div class="alert alert-info">
+            <p><strong>Schedule link:</strong></p>
+            <div class="input-group">
+                <input type="text" class="form-control" readonly value="{{ schedule_url }}" id="schedule-url">
+                <button class="btn btn-outline-secondary" type="button" onclick="copyUrl('schedule-url')">Copy</button>
+            </div>
+        </div>
+        
+        <!-- Users who have responded -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>All Respondents ({{ users|length }})</h5>
+            </div>
+            <div class="card-body">
+                {% if users %}
+                    <ul class="list-group">
+                        {% for user in users %}
+                            <li class="list-group-item {% if user.id == user_id %}active{% endif %}">
+                                <a href="{{ url_for('user_page', schedule_id=schedule.id, user_id=user.id) }}" 
+                                   class="{% if user.id == user_id %}text-white{% endif %}">
+                                    {{ user.name }}
+                                </a>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p>No one has responded yet.</p>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Schedule Grid -->
+        <div id="spa-root">
+            <div class="schedule-grid" id="schedule-grid"></div>
+            {% if is_owner %}
+                <div class="mt-3">
+                    <button class="btn btn-primary" id="save-btn">Save Selections</button>
+                    <span id="save-status" class="ms-3"></span>
+                </div>
+            {% else %}
+                <div class="alert alert-warning mt-3">
+                    <p>You are viewing someone else's schedule. You cannot make changes.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <script>
+        // Set these as both window and global variables for compatibility
+        window.scheduleId = "{{ schedule.id }}";
+        window.userId = "{{ user_id }}";
+        scheduleId = "{{ schedule.id }}";
+        userId = "{{ user_id }}";
+        window.isReadOnly = {{ is_read_only_json | safe }};
+        isReadOnly = {{ is_read_only_json | safe }};
+        
+        function copyUrl(elementId) {
+            var copyText = document.getElementById(elementId);
+            copyText.select();
+            copyText.setSelectionRange(0, 99999);
+            navigator.clipboard.writeText(copyText.value);
+            alert("URL copied to clipboard!");
+        }
+        
+        // Initialize schedule
+        document.addEventListener('DOMContentLoaded', function() {
+            // Variables are already set at the top of the script
+            initializeSchedule();
+        });
+        
+        function initializeSchedule() {
+            try {
+                // Check if we have the required variables
+                if (!window.scheduleId || !window.userId) {
+                    throw new Error("Missing schedule or user ID");
+                }
+                
+                // Load user selections and continue initialization
+                loadUserSelections();
+            } catch (e) {
+                console.error("Error initializing schedule:", e);
+                const grid = document.getElementById('schedule-grid');
+                if (grid) {
+                    grid.innerHTML = `<div class="alert alert-danger">
+                        Error loading schedule. Please try refreshing the page.
+                        <p>Technical details: ${e.message}</p>
+                    </div>`;
+                }
+            }
+        }
+        
+        function loadUserSelections() {
+            fetch('/u/{{ schedule.id }}/{{ user_id }}/selections')
+                .then(response => response.json())
+                .then(data => {
+                    selected = new Set(data);
+                    fetchScheduleInfo();
+                })
+                .catch(error => console.error('Error loading selections:', error));
+        }
+    </script>
+{% endblock %}

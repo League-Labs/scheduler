@@ -3,7 +3,8 @@ services:
   web:
     build: .
     command: gunicorn -b 0.0.0.0:8000 app:app
-
+    volumes:
+      - ./data:/data
 
     # These labels set up the domain name in the Caddy proxy
     labels:
@@ -24,7 +25,3 @@ services:
 networks:
   caddy:
     external: true
-
-
-volumes:
-  mongo-data:

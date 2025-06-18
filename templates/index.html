@@ -1,16 +1,9 @@
 {% extends "base.html" %}
 {% block title %}League Labs Scheduler{% endblock %}
 {% block content %}
-    <h2>Teams</h2>
-    <ul class="team-list">
-        {% for team in teams %}
-            <li>
-                <a href="/{{ team.name }}/">{{ team.name }}</a>
-                <span class="user-count">({{ team.count }} user{{ 's' if team.count != 1 else '' }})</span>
-            </li>
-        {% endfor %}
-    </ul>
-    {% if not teams %}
-        <p>No teams available yet.</p>
-    {% endif %}
+    <div class="text-center mt-5">
+        <h2>Schedule Meetings</h2>
+        <p class="lead">Create a new schedule to coordinate meeting times with your team</p>
+        <a href="{{ url_for('new_schedule') }}" class="btn btn-primary btn-lg mt-3">Create New Schedule</a>
+    </div>
 {% endblock %}

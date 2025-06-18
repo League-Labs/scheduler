@@ -1,16 +1,7 @@
 Flask
-Flask-SQLAlchemy
-Flask-Login
 Flask-Dotenv
 Flask-Cors
-flask-dance
-Flask-Session
-
-jupyter
-ipykernel
-pymongo
 python-dotenv
 gunicorn
 click
 requests
-pygithub
