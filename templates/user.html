@@ -43,28 +43,7 @@
             </div>
         </div>
         
-        <!-- Users who have responded -->
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5>All Respondents ({{ users|length }})</h5>
-            </div>
-            <div class="card-body">
-                {% if users %}
-                    <ul class="list-group">
-                        {% for user in users %}
-                            <li class="list-group-item {% if user.id == user_id %}active{% endif %}">
-                                <a href="{{ url_for('user_page', schedule_id=schedule.id, user_id=user.id) }}" 
-                                   class="{% if user.id == user_id %}text-white{% endif %}">
-                                    {{ user.name }}
-                                </a>
-                            </li>
-                        {% endfor %}
-                    </ul>
-                {% else %}
-                    <p>No one has responded yet.</p>
-                {% endif %}
-            </div>
-        </div>
+
     </div>
     
     <script>

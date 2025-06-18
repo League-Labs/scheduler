@@ -331,9 +331,6 @@ def user_page(schedule_id, user_id):
     # Get user data
     user_data = get_user_data(schedule_id, user_id)
     
-    # Get all users who have responded
-    users = get_all_users_for_schedule(schedule_id)
-    
     current_user_id = session.get('user_id')
     is_owner = (current_user_id == user_id)
     is_read_only_json = json.dumps(not is_owner)
@@ -343,7 +340,6 @@ def user_page(schedule_id, user_id):
     return render_template('user.html', 
                           schedule=schedule_data, 
                           user_data=user_data,
-                          users=users,
                           user_id=user_id,
                           is_owner=is_owner,
                           is_read_only_json=is_read_only_json,
