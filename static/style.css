@@ -106,7 +106,6 @@ li {
     font-weight: bold;
     text-align: center;
     border: 1px solid #222;
-    height: 48px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -175,7 +174,7 @@ li {
 .schedule-grid {
     display: grid;
     grid-template-columns: 60px repeat(7, 1fr);
-    grid-template-rows: 45px repeat(14, 1fr);
+    grid-template-rows: 70px repeat(14, 1fr);
     gap: 2px;
     background: #dee2e6;
     border-radius: 8px;
@@ -266,8 +265,9 @@ li {
 /* Copy button styling */
 .day-header .btn {
     font-size: 10px;
-    padding: 6px;
-    margin: 5px;
+    padding: 2px 6px;
+    margin-top: 4px;
+    margin-bottom: 8px;
 }
 
 /* Password section styling */
