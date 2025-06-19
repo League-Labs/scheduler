@@ -359,3 +359,37 @@ li {
     z-index: 3;
     pointer-events: none;
 }
+
+/* Blackout cells styling - must override all other states */
+.schedule-cell.blackout,
+.schedule-cell.blackout.selected,
+.schedule-cell.bg-blackout,
+.schedule-cell.bg-blackout.selected {
+    background: #000 !important;
+    color: #fff !important;
+    cursor: pointer !important;
+}
+
+.schedule-cell.blackout::before,
+.schedule-cell.blackout.selected::before {
+    content: "" !important;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 16px;
+    font-weight: bold;
+    color: #fff !important;
+    z-index: 10;
+    pointer-events: none;
+    background: none !important;
+    border-radius: 0 !important;
+    width: auto !important;
+    height: auto !important;
+}
+
+/* Blackout cells in summary grid */
+.summary-schedule-cell.bg-blackout {
+    background: #000 !important;
+    color: #fff;
+}

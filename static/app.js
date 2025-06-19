@@ -9,8 +9,10 @@ const HOUR_LABELS = [
 ];
 
 let selected = new Set();
+let blackouts = new Set();
 let info = {};
 let isReadOnly = false;
+let isOwner = window.isOwner || false; // Default to false if not set
 let scheduleId = '';
 let userId = '';
 
@@ -19,6 +21,11 @@ function dayhourKey(day, hour) {
 }
 
 function getCellColor(dayhour) {
+    // Check if this is a blackout cell
+    if (blackouts.has(dayhour)) {
+        return 'bg-blackout';
+    }
+    
     if (!info.dayhours || !info.count) return 'bg-white';
     const count = info.dayhours[dayhour] || 0;
     if (count === 0) return 'bg-white';
@@ -114,6 +121,10 @@ function renderGrid() {
                 dayhourCell.classList.add('selected');
             }
             
+            if (blackouts.has(key)) {
+                dayhourCell.classList.add('blackout');
+            }
+            
             // Add star icon for 100% selection
             if (info.dayhours && info.count && info.dayhours[key] === info.count && info.count > 0) {
                 const starSpan = document.createElement('span');
@@ -130,10 +141,27 @@ function renderGrid() {
                 dayhourCell.appendChild(countSpan);
             }
             
-            // Make cells clickable unless read-only
+            // Make cells clickable based on context
             if (!isReadOnly) {
                 dayhourCell.addEventListener('click', function() {
-                    toggleCell(this);
+                    console.log('Cell clicked:', key, 'isOwner:', window.isOwner, 'pathname:', window.location.pathname);
+                    // On schedule page with owner permissions, handle blackout clicks
+                    if (window.location.pathname.includes('/s/') && isOwner) {
+                        console.log('Calling toggleBlackout');
+                        toggleBlackout(this);
+                    } else {
+                        // Only allow regular cell selection if not a blackout cell
+                        if (!blackouts.has(key)) {
+                            console.log('Calling toggleCell');
+                            toggleCell(this);
+                        }
+                    }
+                });
+            } else if (window.location.pathname.includes('/s/') && isOwner) {
+                // For owners on schedule page, even if marked read-only, allow blackout clicks
+                dayhourCell.addEventListener('click', function() {
+                    console.log('Read-only owner cell clicked, calling toggleBlackout');
+                    toggleBlackout(this);
                 });
             }
             
@@ -154,22 +182,58 @@ function toggleRow(hourIndex) {
         rowCells.push(key);
     }
     
-    // Check if any cells in row are selected
-    const anySelected = rowCells.some(key => selected.has(key));
-    
-    // If any are selected, turn them all off. Otherwise, turn them all on.
-    rowCells.forEach(key => {
-        const cell = document.querySelector(`[data-key="${key}"]`);
-        if (anySelected) {
-            selected.delete(key);
-            cell.classList.remove('selected');
-        } else {
-            selected.add(key);
-            cell.classList.add('selected');
-        }
-    });
-    
-    markDirty();
+    // On schedule page with owner permissions, toggle blackouts instead of selections
+    if (window.location.pathname.includes('/s/') && isOwner) {
+        // Check if any cells in row are blackouts
+        const anyBlackout = rowCells.some(key => blackouts.has(key));
+        
+        // If any are blackouts, turn them all off. Otherwise, turn them all on.
+        rowCells.forEach(key => {
+            const cell = document.querySelector(`[data-key="${key}"]`);
+            
+            if (anyBlackout) {
+                // Remove blackout
+                if (blackouts.has(key)) {
+                    blackouts.delete(key);
+                    cell.classList.remove('blackout', 'bg-blackout');
+                    // Restore original color based on popularity
+                    const colorClass = getCellColor(key);
+                    cell.classList.add(colorClass);
+                }
+            } else {
+                // Add blackout
+                blackouts.add(key);
+                // Remove any selection if this cell was selected
+                selected.delete(key);
+                cell.classList.remove('selected');
+                // Remove all color classes and apply blackout styling
+                cell.classList.remove('bg-white', 'bg-100', 'bg-1st', 'bg-2nd', 'bg-3rd', 'bg-red');
+                cell.classList.add('blackout', 'bg-blackout');
+            }
+        });
+        
+        markBlackoutDirty();
+    } else {
+        // Check if any cells in row are selected
+        const anySelected = rowCells.some(key => selected.has(key));
+        
+        // If any are selected, turn them all off. Otherwise, turn them all on.
+        rowCells.forEach(key => {
+            const cell = document.querySelector(`[data-key="${key}"]`);
+            // Skip blackout cells
+            if (blackouts.has(key)) return;
+            
+            if (anySelected) {
+                selected.delete(key);
+                cell.classList.remove('selected');
+            } else {
+                selected.add(key);
+                cell.classList.add('selected');
+            }
+        });
+        
+        markDirty();
+    }
 }
 
 function toggleColumn(dayIndex) {
@@ -182,22 +246,58 @@ function toggleColumn(dayIndex) {
         columnCells.push(key);
     }
     
-    // Check if any cells in column are selected
-    const anySelected = columnCells.some(key => selected.has(key));
-    
-    // If any are selected, turn them all off. Otherwise, turn them all on.
-    columnCells.forEach(key => {
-        const cell = document.querySelector(`[data-key="${key}"]`);
-        if (anySelected) {
-            selected.delete(key);
-            cell.classList.remove('selected');
-        } else {
-            selected.add(key);
-            cell.classList.add('selected');
-        }
-    });
-    
-    markDirty();
+    // On schedule page with owner permissions, toggle blackouts instead of selections
+    if (window.location.pathname.includes('/s/') && isOwner) {
+        // Check if any cells in column are blackouts
+        const anyBlackout = columnCells.some(key => blackouts.has(key));
+        
+        // If any are blackouts, turn them all off. Otherwise, turn them all on.
+        columnCells.forEach(key => {
+            const cell = document.querySelector(`[data-key="${key}"]`);
+            
+            if (anyBlackout) {
+                // Remove blackout
+                if (blackouts.has(key)) {
+                    blackouts.delete(key);
+                    cell.classList.remove('blackout', 'bg-blackout');
+                    // Restore original color based on popularity
+                    const colorClass = getCellColor(key);
+                    cell.classList.add(colorClass);
+                }
+            } else {
+                // Add blackout
+                blackouts.add(key);
+                // Remove any selection if this cell was selected
+                selected.delete(key);
+                cell.classList.remove('selected');
+                // Remove all color classes and apply blackout styling
+                cell.classList.remove('bg-white', 'bg-100', 'bg-1st', 'bg-2nd', 'bg-3rd', 'bg-red');
+                cell.classList.add('blackout', 'bg-blackout');
+            }
+        });
+        
+        markBlackoutDirty();
+    } else {
+        // Check if any cells in column are selected
+        const anySelected = columnCells.some(key => selected.has(key));
+        
+        // If any are selected, turn them all off. Otherwise, turn them all on.
+        columnCells.forEach(key => {
+            const cell = document.querySelector(`[data-key="${key}"]`);
+            // Skip blackout cells
+            if (blackouts.has(key)) return;
+            
+            if (anySelected) {
+                selected.delete(key);
+                cell.classList.remove('selected');
+            } else {
+                selected.add(key);
+                cell.classList.add('selected');
+            }
+        });
+        
+        markDirty();
+    }
 }
 
 function copyColumn(fromDayIndex) {
@@ -206,32 +306,75 @@ function copyColumn(fromDayIndex) {
     const fromDay = DAYS[fromDayIndex];
     const toDay = DAYS[fromDayIndex + 1];
     
-    // Get selections from source column
-    const fromSelections = [];
-    for (let h = 0; h < HOURS.length; h++) {
-        const key = dayhourKey(fromDay, HOURS[h]);
-        if (selected.has(key)) {
-            fromSelections.push(HOURS[h]);
+    // On schedule page with owner permissions, copy blackouts instead of selections
+    if (window.location.pathname.includes('/s/') && isOwner) {
+        // Get blackouts from source column
+        const fromBlackouts = [];
+        for (let h = 0; h < HOURS.length; h++) {
+            const key = dayhourKey(fromDay, HOURS[h]);
+            if (blackouts.has(key)) {
+                fromBlackouts.push(HOURS[h]);
+            }
         }
+        
+        // Clear target column blackouts
+        for (let h = 0; h < HOURS.length; h++) {
+            const key = dayhourKey(toDay, HOURS[h]);
+            if (blackouts.has(key)) {
+                blackouts.delete(key);
+                const cell = document.querySelector(`[data-key="${key}"]`);
+                cell.classList.remove('blackout', 'bg-blackout');
+                // Restore original color based on popularity
+                const colorClass = getCellColor(key);
+                cell.classList.add(colorClass);
+            }
+        }
+        
+        // Copy blackouts to target column
+        fromBlackouts.forEach(hour => {
+            const key = dayhourKey(toDay, hour);
+            blackouts.add(key);
+            // Remove any selection if this cell was selected
+            selected.delete(key);
+            const cell = document.querySelector(`[data-key="${key}"]`);
+            cell.classList.remove('selected');
+            // Remove all color classes and apply blackout styling
+            cell.classList.remove('bg-white', 'bg-100', 'bg-1st', 'bg-2nd', 'bg-3rd', 'bg-red');
+            cell.classList.add('blackout', 'bg-blackout');
+        });
+        
+        markBlackoutDirty();
+    } else {
+        // Get selections from source column
+        const fromSelections = [];
+        for (let h = 0; h < HOURS.length; h++) {
+            const key = dayhourKey(fromDay, HOURS[h]);
+            if (selected.has(key)) {
+                fromSelections.push(HOURS[h]);
+            }
+        }
+        
+        // Clear target column
+        for (let h = 0; h < HOURS.length; h++) {
+            const key = dayhourKey(toDay, HOURS[h]);
+            selected.delete(key);
+            const cell = document.querySelector(`[data-key="${key}"]`);
+            cell.classList.remove('selected');
+        }
+        
+        // Copy selections to target column
+        fromSelections.forEach(hour => {
+            const key = dayhourKey(toDay, hour);
+            // Skip blackout cells
+            if (blackouts.has(key)) return;
+            
+            selected.add(key);
+            const cell = document.querySelector(`[data-key="${key}"]`);
+            cell.classList.add('selected');
+        });
+        
+        markDirty();
     }
-    
-    // Clear target column
-    for (let h = 0; h < HOURS.length; h++) {
-        const key = dayhourKey(toDay, HOURS[h]);
-        selected.delete(key);
-        const cell = document.querySelector(`[data-key="${key}"]`);
-        cell.classList.remove('selected');
-    }
-    
-    // Copy selections to target column
-    fromSelections.forEach(hour => {
-        const key = dayhourKey(toDay, hour);
-        selected.add(key);
-        const cell = document.querySelector(`[data-key="${key}"]`);
-        cell.classList.add('selected');
-    });
-    
-    markDirty();
 }
 
 function markDirty() {
@@ -254,6 +397,7 @@ function cell(className, text) {
 
 function toggleCell(cell) {
     const key = cell.dataset.key;
+    console.log('toggleCell called for key:', key);
     if (selected.has(key)) {
         selected.delete(key);
         cell.classList.remove('selected');
@@ -327,10 +471,22 @@ function fetchScheduleInfo() {
             throw new Error(data.error);
         }
         info = data;
+        
+        // Set owner status from response
+        isOwner = data.is_owner || false;
+
+        // Load blackouts from the response
+        if (data.blackouts) {
+            blackouts = new Set(data.blackouts);
+        }
+        
         renderGrid();
         renderSummaryGrid(); // Also render summary grid if it exists
         setupSaveButton();
         setupNameInput();
+        if (typeof setupBlackoutSaveButton === 'function') {
+            setupBlackoutSaveButton();
+        }
     })
     .catch(error => {
         
@@ -355,6 +511,15 @@ function setupSaveButton() {
     saveBtn.addEventListener('click', function() {
         // Call the API to save selections
         saveSelections();
+    });
+}
+
+function setupBlackoutSaveButton() {
+    const saveBtn = document.getElementById('save-blackout-btn');
+    if (!saveBtn) return;
+    
+    saveBtn.addEventListener('click', function() {
+        saveBlackouts();
     });
 }
 
@@ -392,7 +557,9 @@ function saveSelections() {
     saveStatus.textContent = 'Saving...';
     
     // First, update the name in session if it has changed
-    const userName = nameInput ? nameInput.value.trim() : null;
+    const userName = nameInput ? 
+        nameInput.value.trim() : 
+        null;
     const savePromise = userName ? 
         fetch('/set_name', {
             method: 'POST',
@@ -545,22 +712,157 @@ function renderSummaryGrid() {
             const colorClass = getCellColor(key);
             dayhourCell.classList.add(colorClass);
             
-            // Show count if any selections
-            if (info.dayhours && info.dayhours[key]) {
-                dayhourCell.textContent = info.dayhours[key];
-            }
-            
-            // Add star icon for 100% selection
-            if (info.dayhours && info.count && info.dayhours[key] === info.count && info.count > 0) {
-                const starSpan = document.createElement('span');
-                starSpan.className = 'summary-star-icon';
-                starSpan.textContent = '★';
-                dayhourCell.appendChild(starSpan);
+            // Show blackout cells differently in summary
+            if (blackouts.has(key)) {
+                dayhourCell.textContent = '✕';
+                dayhourCell.style.color = '#fff';
+            } else {
+                // Show count if any selections
+                if (info.dayhours && info.dayhours[key]) {
+                    dayhourCell.textContent = info.dayhours[key];
+                }
+                
+                // Add star icon for 100% selection
+                if (info.dayhours && info.count && info.dayhours[key] === info.count && info.count > 0) {
+                    const starSpan = document.createElement('span');
+                    starSpan.className = 'summary-star-icon';
+                    starSpan.textContent = '★';
+                    dayhourCell.appendChild(starSpan);
+                }
             }
             
             grid.appendChild(dayhourCell);
         }
     }
+}
+
+function toggleBlackout(cell) {
+    const key = cell.dataset.key;
+    
+    console.log('toggleBlackout called for key:', key);
+    console.log('Current blackouts:', Array.from(blackouts));
+    
+    if (blackouts.has(key)) {
+        // Remove blackout
+        blackouts.delete(key);
+        cell.classList.remove('blackout');
+        cell.classList.remove('bg-blackout');
+        // Restore original color based on popularity
+        const colorClass = getCellColor(key);
+        cell.classList.add(colorClass);
+        console.log('Removed blackout, added color class:', colorClass);
+    } else {
+        // Add blackout
+        blackouts.add(key);
+        // Remove any selection if this cell was selected
+        selected.delete(key);
+        cell.classList.remove('selected');
+        // Remove all color classes and apply blackout styling
+        cell.classList.remove('bg-white', 'bg-100', 'bg-1st', 'bg-2nd', 'bg-3rd', 'bg-red');
+        cell.classList.add('blackout');
+        cell.classList.add('bg-blackout');
+        console.log('Added blackout for key:', key);
+    }
+    markBlackoutDirty();
+}
+
+function markBlackoutDirty() {
+    // Show save button as dirty for blackouts
+    const saveBtn = document.getElementById('save-blackout-btn');
+    if (saveBtn) {
+        saveBtn.classList.add('btn-warning');
+        saveBtn.classList.remove('btn-success');
+        saveBtn.classList.remove('btn-primary');
+        const saveStatus = document.getElementById('save-blackout-status');
+        if (saveStatus) {
+            saveStatus.textContent = 'Unsaved blackout changes';
+        }
+    }
+}
+
+function saveBlackouts() {
+    const saveBtn = document.getElementById('save-blackout-btn');
+    const saveStatus = document.getElementById('save-blackout-status');
+    
+    const currentScheduleId = window.scheduleId || scheduleId;
+    const schedulePassword = window.schedulePassword || '';
+    
+    if (!currentScheduleId) {
+        console.error("Missing scheduleId - cannot save blackouts");
+        saveStatus.textContent = 'Error: Missing schedule ID';
+        return;
+    }
+    
+    saveBtn.disabled = true;
+    saveStatus.textContent = 'Saving blackouts...';
+    
+    const data = {
+        blackouts: Array.from(blackouts),
+        pw: schedulePassword
+    };
+    
+    fetch(`/s/${currentScheduleId}/blackouts`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify(Array.from(blackouts))
+    })
+    .then(response => response.json())
+    .then(data => {
+        saveBtn.disabled = false;
+        if (data.error) {
+            saveStatus.textContent = 'Error: ' + data.error;
+        } else {
+            saveBtn.classList.remove('btn-warning');
+            saveBtn.classList.add('btn-success');
+            saveStatus.textContent = 'Blackouts saved!';
+            
+            // Refresh the info after saving
+            fetchScheduleInfo();
+            
+            // Reset to primary button after 2 seconds
+            setTimeout(() => {
+                saveBtn.classList.remove('btn-success');
+                saveBtn.classList.add('btn-primary');
+                saveStatus.textContent = '';
+            }, 2000);
+        }
+    })
+    .catch(error => {
+        console.error('Error saving blackouts:', error);
+        saveBtn.disabled = false;
+        saveStatus.textContent = 'Error saving blackouts: ' + error.message;
+    });
+}
+
+function loadBlackouts() {
+    const currentScheduleId = window.scheduleId || scheduleId;
+    
+    if (!currentScheduleId) {
+        console.error("Missing scheduleId - cannot load blackouts");
+        return;
+    }
+    
+    fetch(`/s/${currentScheduleId}/blackouts`, {
+        headers: {
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        blackouts = new Set(data);
+        renderGrid();
+        renderSummaryGrid();
+    })
+    .catch(error => console.error('Error loading blackouts:', error));
 }
 
 // Schedule initialization will be done in the individual pages' script sections

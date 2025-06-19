@@ -27,16 +27,32 @@
         <div class="row">
             <!-- Left column: Schedule Overview -->
             <div class="col-lg-8">
-                <!-- Summary Schedule Grid -->
+                <!-- Schedule Overview with Blackout Management -->
                 <div class="card mb-4">
                     <div class="card-header">
-                        <h5>Schedule Overview</h5>
+                        <h5>Schedule Overview{% if is_owner %} & Blackout Management{% endif %}</h5>
                     </div>
                     <div class="card-body">
-                        <div id="summary-schedule-grid" class="summary-schedule-grid"></div>
-                        <small class="text-muted">
+                        {% if is_owner %}
+                        <div class="alert alert-info mb-3">
+                            <strong>Owner Controls:</strong> Click on time slots to mark them as unavailable (blackout times). 
+                            Blackout times will appear as black cells and cannot be selected by participants.
+                        </div>
+                        {% endif %}
+                        
+                        <div id="schedule-grid" class="schedule-grid"></div>
+                        
+                        {% if is_owner %}
+                        <div class="mt-3">
+                            <button class="btn btn-primary" id="save-blackout-btn">Save Blackout Times</button>
+                            <span id="save-blackout-status" class="ms-3"></span>
+                        </div>
+                        {% endif %}
+                        
+                        <small class="text-muted mt-2 d-block">
                             Numbers show submission count. ★ indicates 100% participation. 
                             Colors indicate popularity: green (high), yellow (medium), red (low).
+                            {% if is_owner %}Black cells with ✕ are unavailable times you can toggle.{% else %}Black cells are unavailable times.{% endif %}
                         </small>
                     </div>
                 </div>
@@ -105,9 +121,23 @@
         window.userId = "{{ user_id }}";
         scheduleId = "{{ schedule.id }}";
         userId = "{{ user_id }}";
-        window.isReadOnly = true;
-        isReadOnly = true;
+
+        // We use a string because otherwise template brackets upset the Javascript linter. 
+        isOwner = "{{ is_owner }}" == "True";
+        window.isOwner = isOwner;
+        isReadOnly = !isOwner; // Default to read-only if not owner
+        window.isReadOnly = isReadOnly;
+        
+
         window.schedulePassword = "{{ schedule.password or '' }}";
+        
+        // Debug logging
+        console.log('Schedule page initialization:');
+        console.log('isOwner:', isOwner);
+        console.log('isReadOnly:', isReadOnly);
+        console.log('scheduleId:', scheduleId);
+        console.log('userId:', userId);
+        console.log('pathname:', window.location.pathname);
         
         function copyUrl(elementId) {
             var copyText = document.getElementById(elementId);
@@ -161,6 +191,13 @@
         
         // Initialize schedule with read-only mode
         document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded, variables:', {
+                scheduleId: window.scheduleId,
+                userId: window.userId,
+                isOwner: window.isOwner,
+                isReadOnly: window.isReadOnly,
+                pathname: window.location.pathname
+            });
             // Variables already set above
             fetchScheduleInfo();
             

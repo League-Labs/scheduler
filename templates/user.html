@@ -63,9 +63,12 @@
         window.userId = "{{ user_id }}";
         scheduleId = "{{ schedule.id }}";
         userId = "{{ user_id }}";
-        isReadOnly = "{{ is_read_only_json  }}" == 'true';
+        // We use a string because otherwise template brackets upset the Javascript linter.
+        isReadOnly = "{{ is_owner }}" != "True";
+        isOwner =  "{{ is_owner }}" == "True";
         
         window.isReadOnly = isReadOnly;
+        window.isOwner = isOwner;
         
         function copyUrl(elementId) {
             var copyText = document.getElementById(elementId);

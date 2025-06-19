@@ -315,15 +315,25 @@ def schedule_page(schedule_id):
     # Get all users who have responded
     users = get_all_users_for_schedule(schedule_id)
     
+    # Check if current user is the owner (can manage blackouts)
+    # Owner is someone who either created the schedule OR has the correct password
+    is_owner = (user_id == schedule_data.get('creator_id')) or (pw_param and pw_param == schedule_password)
+    
+    # Debug logging
+    app.logger.info(f"Schedule {schedule_id}: user_id={user_id}, creator_id={schedule_data.get('creator_id')}, pw_param={pw_param}, schedule_password={schedule_password}, is_owner={is_owner}")
+    
     schedule_url = url_for('schedule_page', schedule_id=schedule_id, _external=True)
     schedule_url_with_pw = url_for('schedule_page', schedule_id=schedule_id, pw=schedule_password, _external=True) if schedule_password else None
     user_url = url_for('user_page', schedule_id=schedule_id, user_id=user_id, _external=True)
     show_instructions = False  # Schedule page is read-only, no instructions needed
     
+
+
     return render_template('schedule.html', 
                           schedule=schedule_data, 
                           users=users, 
                           user_id=user_id,
+                          is_owner=str(is_owner),
                           schedule_url=schedule_url,
                           schedule_url_with_pw=schedule_url_with_pw,
                           user_url=user_url,
@@ -347,7 +357,7 @@ def user_page(schedule_id, user_id):
     
     current_user_id = session.get('user_id')
     is_owner = (current_user_id == user_id)
-    is_read_only_json = json.dumps(not is_owner)
+   
     show_instructions = is_owner  # Show instructions only for the owner
     
     schedule_url = url_for('schedule_page', schedule_id=schedule_id, _external=True)
@@ -356,8 +366,7 @@ def user_page(schedule_id, user_id):
                           schedule=schedule_data, 
                           user_data=user_data,
                           user_id=user_id,
-                          is_owner=is_owner,
-                          is_read_only_json=is_read_only_json,
+                          is_owner=str(is_owner), # Use strings to make the Javascript linter happy. 
                           show_instructions=show_instructions,
                           schedule_url=schedule_url)
 
@@ -392,6 +401,9 @@ def schedule_info(schedule_id):
         response_data = {
             'id': schedule_id,
             'count': count,
+            'dayhours': {},
+            'is_owner': session.get('user_id') == schedule_data.get('creator_id'),
+            'blackouts': schedule_data.get('blackouts', []),
             'dayhours': {}
         }
         
@@ -489,6 +501,8 @@ def update_schedule(schedule_id):
         schedule_data['name'] = data['name']
     if 'description' in data:
         schedule_data['description'] = data['description']
+    if 'blackouts' in data:
+        schedule_data['blackouts'] = data['blackouts']
     
     schedule_data['updated_at'] = datetime.now().isoformat()
     
@@ -497,6 +511,56 @@ def update_schedule(schedule_id):
         return jsonify({'status': 'ok', 'schedule': schedule_data})
     else:
         return jsonify({'error': 'Failed to save schedule'}), 500
+
+# --- Get/Update blackout times for schedule owners ---
+@app.route('/s/<schedule_id>/blackouts', methods=['GET', 'POST'])
+def schedule_blackouts(schedule_id):
+    # Get schedule data
+    schedule_data = get_schedule_data(schedule_id)
+    if not schedule_data:
+        return jsonify({'error': 'Schedule not found'}), 404
+    
+    current_user_id = session.get('user_id')
+    
+    # For GET requests, return current blackouts
+    if request.method == 'GET':
+        blackouts = schedule_data.get('blackouts', [])
+        return jsonify(blackouts)
+    
+    # For POST requests, check if user has permission to update blackouts
+    pw_param = None
+    if request.is_json:
+        # Check if the JSON is a dict (containing pw) or a list (just the blackouts)
+        json_data = request.get_json()
+        if isinstance(json_data, dict):
+            pw_param = json_data.get('pw')
+    else:
+        pw_param = request.form.get('pw')
+    
+    # Allow update if user provides correct password or is the creator
+    has_permission = False
+    if schedule_data.get('password') and pw_param == schedule_data.get('password'):
+        has_permission = True
+    elif current_user_id == schedule_data.get('creator_id'):
+        has_permission = True
+    
+    if not has_permission:
+        return jsonify({'error': 'Not authorized to update blackouts'}), 403
+    
+    # Get blackout data
+    data = request.get_json(force=True)
+    if not isinstance(data, list):
+        return jsonify({'error': 'Blackouts must be a list'}), 400
+    
+    # Update blackouts
+    schedule_data['blackouts'] = data
+    schedule_data['updated_at'] = datetime.now().isoformat()
+    
+    # Save updated data
+    if save_schedule_data(schedule_id, schedule_data):
+        return jsonify({'status': 'ok'})
+    else:
+        return jsonify({'error': 'Failed to save blackouts'}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
