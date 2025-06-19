@@ -174,7 +174,7 @@ The schedule view on the schdule page is non-editable, while the schedule on the
 user's page is editable. 
 
 Only the schedule page which is protected by a password, shows the list of users
-who responded. The  user's chedule page should not show the users who responded. 
+who responded. The  user's schedule page should not show the users who responded. 
 
 ## Sprint 2
 
@@ -182,3 +182,10 @@ Create a new schedule for the schedule page ( dont change the ditable schedule
 on the user's page). The new schedule should be smaller and not editable. Just
 include in each cell the number of submissions, the background color, and the
 start for selected responses. 
+
+## Sprint 3
+
+Blackout times: On the owner's schedule page, the calendar view works like the
+user's page schedule, except when the oenwer clicks on a cell, it turns black.
+These cells are marked as unavailable, and will show as back in the user's view.
+They are not clickable in the user's view. 
