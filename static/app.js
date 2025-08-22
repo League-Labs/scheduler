@@ -127,14 +127,22 @@ function renderGrid() {
             
             // Add star icon for 100% selection
             if (info.dayhours && info.count && info.dayhours[key] === info.count && info.count > 0) {
+                // Create a wrapper for star and count
+                const starWrapper = document.createElement('span');
+                starWrapper.className = 'star-count-wrapper';
+                // Star
                 const starSpan = document.createElement('span');
                 starSpan.className = 'star-icon';
                 starSpan.textContent = '★';
-                dayhourCell.appendChild(starSpan);
-            }
-            
-            // Show count if any selections
-            if (info.dayhours && info.dayhours[key]) {
+                // Count (centered in star)
+                const countSpan = document.createElement('span');
+                countSpan.className = 'cell-count-on-star';
+                countSpan.textContent = info.dayhours[key];
+                starWrapper.appendChild(starSpan);
+                starWrapper.appendChild(countSpan);
+                dayhourCell.appendChild(starWrapper);
+            } else if (info.dayhours && info.dayhours[key]) {
+                // Show count if any selections (not 100%)
                 const countSpan = document.createElement('span');
                 countSpan.className = 'cell-count';
                 countSpan.textContent = info.dayhours[key];
