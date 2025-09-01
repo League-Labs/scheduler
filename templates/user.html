@@ -19,38 +19,41 @@
         </div>
         {% endif %}
         
-        <!-- Schedule Grid -->
-        <div id="spa-root">
-            <div class="schedule-grid" id="schedule-grid"></div>
-            {% if is_owner %}
+        <!-- Schedule Grid and Instructions in two columns -->
+        <div class="row" id="spa-root">
+            <div class="col-lg-8">
+                <div class="schedule-grid" id="schedule-grid"></div>
+                {% if is_owner %}
                 <!-- Name form field -->
-                <div class="mt-3">
+                <div class="mt-3" style="max-width: 320px;">
                     <div class="mb-3">
                         <label for="user-name" class="form-label">Your Name</label>
                         <input type="text" class="form-control" id="user-name" name="user-name" 
-                               value="{{ session.get('name', '') }}" placeholder="Enter your name" required>
-                      
+                               value="{{ session.get('name', '') }}" placeholder="Enter your name" required style="max-width: 220px;">
                         <div id="name-error" class="text-danger d-none">Please enter your name before saving selections.</div>
                     </div>
                     <button class="btn btn-primary" id="save-btn">Save Selections</button>
                     <span id="save-status" class="ms-3"></span>
                 </div>
-                
-                <!-- Instructions for editable schedule -->
-                {% include 'instructions.html' %}
-            {% else %}
+                {% endif %}
+                {% if not is_owner %}
                 <div class="alert alert-warning mt-3">
                     <p>You are viewing someone else's schedule. You cannot make changes.</p>
                 </div>
-            {% endif %}
-        </div>
-        
-        <!-- Schedule URL Display -->
-        <div class="alert alert-info mt-4">
-            <p><strong>Schedule link:</strong></p>
-            <div class="input-group">
-                <input type="text" class="form-control" readonly value="{{ schedule_url }}" id="schedule-url">
-                <button class="btn btn-outline-secondary" type="button" onclick="copyUrl('schedule-url')">Copy</button>
+                {% endif %}
+            </div>
+            <div class="col-lg-4">
+                {% if is_owner %}
+                    {% include 'instructions.html' %}
+                {% endif %}
+                <!-- Schedule URL Display -->
+                <div class="alert alert-info mt-3">
+                    <p><strong>Sharable schedule link:</strong></p>
+                    <div class="input-group">
+                        <input type="text" class="form-control" readonly value="{{ schedule_url }}" id="schedule-url">
+                        <button class="btn btn-outline-secondary" type="button" onclick="copyUrl('schedule-url')">Copy</button>
+                    </div>
+                </div>
             </div>
         </div>
         

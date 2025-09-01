@@ -39,16 +39,13 @@
                             Blackout times will appear as black cells and cannot be selected by participants.
                         </div>
                         {% endif %}
-                        
                         <div id="schedule-grid" class="schedule-grid"></div>
-                        
                         {% if is_owner %}
                         <div class="mt-3">
                             <button class="btn btn-primary" id="save-blackout-btn">Save Blackout Times</button>
                             <span id="save-blackout-status" class="ms-3"></span>
                         </div>
                         {% endif %}
-                        
                         <small class="text-muted mt-2 d-block">
                             Numbers show submission count. ★ indicates 100% participation. 
                             Colors indicate popularity: green (high), yellow (medium), red (low).
@@ -57,9 +54,12 @@
                     </div>
                 </div>
             </div>
-            
-            <!-- Right column: Link sharing -->
+
+            <!-- Right column: Instructions and Link sharing -->
             <div class="col-lg-4">
+                {% if not is_owner %}
+                    {% include "instructions.html" %}
+                {% endif %}
                 <!-- Schedule URL Display -->
                 <div class="alert alert-info">
                     <p><strong>Share this link with others:</strong></p>
@@ -68,7 +68,6 @@
                         <button class="btn btn-outline-secondary" type="button" onclick="copyUrl('schedule-url')">Copy</button>
                     </div>
                 </div>
-                
                 {% if schedule_url_with_pw %}
                 <!-- Management URL with password -->
                 <div class="alert alert-warning">
@@ -79,7 +78,6 @@
                     </div>
                 </div>
                 {% endif %}
-                
                 <!-- User specific URL -->
                 <div class="alert alert-success">
                     <p><strong>Your personal link:</strong></p>
@@ -114,7 +112,6 @@
             </div>
         </div>
     </div>
-    
     <script>
         // Set these as both window and global variables for compatibility
         window.scheduleId = "{{ schedule.id }}";
@@ -127,10 +124,9 @@
         window.isOwner = isOwner;
         isReadOnly = !isOwner; // Default to read-only if not owner
         window.isReadOnly = isReadOnly;
-        
 
         window.schedulePassword = "{{ schedule.password or '' }}";
-        
+
         // Debug logging
         console.log('Schedule page initialization:');
         console.log('isOwner:', isOwner);
@@ -138,7 +134,7 @@
         console.log('scheduleId:', scheduleId);
         console.log('userId:', userId);
         console.log('pathname:', window.location.pathname);
-        
+
         function copyUrl(elementId) {
             var copyText = document.getElementById(elementId);
             copyText.select();
@@ -146,22 +142,22 @@
             navigator.clipboard.writeText(copyText.value);
             alert("URL copied to clipboard!");
         }
-        
+
         function saveScheduleMetadata() {
             const saveBtn = document.getElementById('save-metadata-btn');
             const saveStatus = document.getElementById('save-metadata-status');
             const name = document.getElementById('schedule-name').value;
             const description = document.getElementById('schedule-description').value;
-            
+
             saveBtn.disabled = true;
             saveStatus.textContent = 'Saving...';
-            
+
             const data = {
                 name: name,
                 description: description,
                 pw: window.schedulePassword
             };
-            
+
             fetch(`/s/${window.scheduleId}/update`, {
                 method: 'POST',
                 headers: {
@@ -188,7 +184,7 @@
                 saveStatus.textContent = 'Error saving';
             });
         }
-        
+
         // Initialize schedule with read-only mode
         document.addEventListener('DOMContentLoaded', function() {
             console.log('DOM loaded, variables:', {
@@ -200,7 +196,7 @@
             });
             // Variables already set above
             fetchScheduleInfo();
-            
+
             // Setup save button for metadata
             document.getElementById('save-metadata-btn').addEventListener('click', saveScheduleMetadata);
         });
